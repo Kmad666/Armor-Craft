@@ -4,21 +4,22 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Suit](docs/suit.png)
 ![Helmet designer](docs/helmet.png)
+![Back](docs/back.png)
 
-## v0.1 – what's in
+## v0.2 – what's in
 
-**Suit tab**
-- Armor stand mannequin with toggleable plates: gorget, cuirass, faulds, pauldrons, arms, gauntlets, legs, sabatons
-- Metal finishes: polished steel, blackened steel, brass, gilded, rusted iron
-- Cloth layer: surcoat, belt, cape, with a colour picker
-- Forge Random Suit
+**The harness** (modelled on an Italian-style harness, c. 1400–1420), every piece procedural:
+- Hounskull bascinet: pointed apex, pig-faced visor with eye slit and breaths, rosette pivots, aventail vervelles
+- Mail aventail cape, mail sleeves, mail skirt over a linen arming skirt, mail at the backs of the thighs
+- Globose breastplate and backplate with rolled edges, side straps and buckles; two fauld lames
+- Rerebraces, couters with fan wings, hinged vambraces, hourglass gauntlets with articulated fingers and thumb
+- Cuisses strapped over mail, poleyns with fan wings, greaves with hinge lines, pointed laminated sabatons
+- Waist and hip belts with brass buckles, rivets throughout
+- Hammered-steel shader (patina, hammer marks) and a four-in-one chainmail shader
 
-**Helmet tab**
-- Procedural helmet shell you can stretch and morph: width, depth, height, dome, taper, brim flare, snout
-- Visor styles: horizontal slits, split eyes, T-visor, grille, with count / width / thickness / height sliders
-- Presets: Great Helm, Hounskull, Barbute, Sallet, Grilled Bascinet
-- Plume and rolled rim extras
-- Forge Random Helmet
+**Suit tab:** toggle every plate, mail and cloth group; six finishes (armour steel, polished, blackened, brass, gilded, rusted); optional surcoat and cape with colour picker; Forge Random Suit.
+
+**Helmet tab:** sculpt width, depth, height, dome, apex, taper, brim flare, snout; slit styles (horizontal, split eyes, T-visor, grille) with count/width/thickness/height; pig-face visor, breaths, plume and rolled rim toggles; five presets; Forge Random Helmet.
 
 Drag to orbit, scroll to zoom, tick **Turntable** for a slow spin (good for clips).
 
@@ -32,14 +33,16 @@ Every push to `main` builds the web version and deploys it to GitHub Pages
 ```
 project.godot
 scenes/main.tscn          # single root node, everything built in code
-scripts/main.gd           # mannequin, armor pieces, camera, UI
-scripts/helmet_builder.gd # procedural helmet shell + visor slits
+scripts/main.gd           # world, materials, camera, UI
+scripts/suit_builder.gd   # the full harness, grouped for toggling
+scripts/helmet_builder.gd # procedural helmet + hounskull visor
+scripts/mesh_kit.gd       # parametric surfaces, rolled edges, rivets
+shaders/                  # hammered steel + chainmail
 .github/workflows/        # web export + Pages deploy
 ```
 
 ## Roadmap ideas
 
-- Real visor cutting (holes in the mesh) and breaths/vent holes
 - Plate articulation: overlapping lames that flex at elbow and knee
 - Heraldry painter for surcoat and shield
 - Customer commissions and a test yard (joust, arrows, mace strikes that dent weak designs)
