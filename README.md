@@ -10,6 +10,14 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Proportions](docs/proportions.png)
 
+## v0.6 – spangenhelm (simple shapes first)
+
+Helmets now start from simple shapes and get detail added step by step. First up, the **spangenhelm**: a plain half-sphere shell, 2 mm thick, in the hammered-steel finish, fitted to the mannequin's head with the rim on the brow. It's the default helmet; the hounskull bascinet and the procedural designer are still in the Helmet dropdown.
+
+Source: `art/blender/build_helmet_spangenhelm.py` (four numbers: rim height, width, depth, dome height) and `helmet_spangenhelm.blend`.
+
+![Spangenhelm](docs/spangenhelm.png)
+
 ## v0.5 – the wooden mannequin
 
 Everything is now fitted to a **jointed wooden artist's mannequin**, traced from an outline drawn over the reference harness.

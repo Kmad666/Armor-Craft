@@ -5,6 +5,7 @@ extends Node3D
 const HelmetBuilder := preload("res://scripts/helmet_builder.gd")
 const HelmetPiece := preload("res://scripts/pieces/helmet_piece.gd")
 const BASCINET_SCENE := preload("res://assets/pieces/helmet_bascinet.glb")
+const SPANGENHELM_SCENE := preload("res://assets/pieces/helmet_spangenhelm.glb")
 const SuitBuilder := preload("res://scripts/suit_builder.gd")
 const Mannequin := preload("res://scripts/pieces/mannequin.gd")
 const MANNEQUIN_SCENE := preload("res://assets/mannequin/mannequin_wood.glb")
@@ -96,7 +97,8 @@ var wood_mat: ShaderMaterial
 var wood_dark_mat: ShaderMaterial
 var helmet_node: Node3D
 var modeled_helmet: Node3D
-var helmet_mode := 0  # 0 = modelled bascinet, 1 = procedural designer
+var spangenhelm: Node3D
+var helmet_mode := 0  # 0 = spangenhelm, 1 = modelled bascinet, 2 = procedural designer
 var model_controls := {}
 var groups := {}
 var group_checks := {}
@@ -130,6 +132,10 @@ func _ready() -> void:
 	# Helmets are authored around the centre of the head at eye level: the head socket.
 	mannequin.node("Socket_Head").add_child(modeled_helmet)
 	modeled_helmet.setup(BASCINET_SCENE, {"Steel": metal_mat, "Leather": leather_mat})
+	spangenhelm = HelmetPiece.new()
+	spangenhelm.name = "Spangenhelm"
+	mannequin.node("Socket_Head").add_child(spangenhelm)
+	spangenhelm.setup(SPANGENHELM_SCENE, {"Steel": metal_mat})
 	_rebuild_helmet()
 	_build_ui()
 	_apply_finish(0)
@@ -284,11 +290,13 @@ func _rebuild_helmet() -> void:
 
 func _update_helmet_visibility() -> void:
 	if helmet_node:
-		helmet_node.visible = wear_helmet and helmet_mode == 1
+		helmet_node.visible = wear_helmet and helmet_mode == 2
+	if spangenhelm:
+		spangenhelm.visible = wear_helmet and helmet_mode == 0
 	if modeled_helmet:
-		modeled_helmet.visible = wear_helmet and helmet_mode == 0
+		modeled_helmet.visible = wear_helmet and helmet_mode == 1
 	# The modelled helmet has a real face opening, so keep the head inside it.
-	head_node.visible = not wear_helmet or helmet_mode == 0
+	head_node.visible = not wear_helmet or helmet_mode != 2
 
 
 # --------------------------------------------------------------------------
@@ -342,7 +350,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "v0.5  -  drag to orbit, scroll to zoom"
+	hint.text = "v0.6  -  drag to orbit, scroll to zoom"
 	hint.add_theme_color_override("font_color", Color(0.85, 0.83, 0.8))
 	hint.position = Vector2(24, 56)
 	layer.add_child(hint)
@@ -497,12 +505,14 @@ func _build_helmet_tab(box: VBoxContainer) -> void:
 
 	_header(box, "Helmet")
 	var model_option := OptionButton.new()
-	model_option.add_item("Hounskull Bascinet (modelled)")
+	model_option.add_item("Spangenhelm")
+	model_option.add_item("Hounskull Bascinet")
 	model_option.add_item("Procedural Designer")
 	box.add_child(model_option)
 
 	var modeled := VBoxContainer.new()
 	modeled.add_theme_constant_override("separation", 6)
+	modeled.visible = false
 	box.add_child(modeled)
 	_header(modeled, "Morph")
 	for spec in MODEL_SLIDERS:
@@ -520,8 +530,8 @@ func _build_helmet_tab(box: VBoxContainer) -> void:
 	box.add_child(proc)
 	model_option.item_selected.connect(func(i: int) -> void:
 		helmet_mode = i
-		modeled.visible = i == 0
-		proc.visible = i == 1
+		modeled.visible = i == 1
+		proc.visible = i == 2
 		_update_helmet_visibility())
 
 	_header(proc, "Preset")
