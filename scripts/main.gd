@@ -5,7 +5,8 @@ extends Node3D
 const HelmetBuilder := preload("res://scripts/helmet_builder.gd")
 const HelmetPiece := preload("res://scripts/pieces/helmet_piece.gd")
 const BASCINET_SCENE := preload("res://assets/pieces/helmet_bascinet.glb")
-const SPANGENHELM_SCENE := preload("res://assets/pieces/helmet_spangenhelm.glb")
+const ShapedHelmet := preload("res://scripts/pieces/shaped_helmet.gd")
+const ShapeGizmo := preload("res://scripts/pieces/shape_gizmo.gd")
 const SuitBuilder := preload("res://scripts/suit_builder.gd")
 const Mannequin := preload("res://scripts/pieces/mannequin.gd")
 const MANNEQUIN_SCENE := preload("res://assets/mannequin/mannequin_wood.glb")
@@ -98,6 +99,12 @@ var wood_dark_mat: ShaderMaterial
 var helmet_node: Node3D
 var modeled_helmet: Node3D
 var spangenhelm: Node3D
+var gizmo: Node3D
+var helmet_selected := false
+var press_pos := Vector2.ZERO
+var press_moved := false
+var drag_handle := ""
+var shape_sliders := {}
 var helmet_mode := 0  # 0 = spangenhelm, 1 = modelled bascinet, 2 = procedural designer
 var model_controls := {}
 var groups := {}
@@ -132,10 +139,13 @@ func _ready() -> void:
 	# Helmets are authored around the centre of the head at eye level: the head socket.
 	mannequin.node("Socket_Head").add_child(modeled_helmet)
 	modeled_helmet.setup(BASCINET_SCENE, {"Steel": metal_mat, "Leather": leather_mat})
-	spangenhelm = HelmetPiece.new()
+	spangenhelm = ShapedHelmet.new()
 	spangenhelm.name = "Spangenhelm"
 	mannequin.node("Socket_Head").add_child(spangenhelm)
-	spangenhelm.setup(SPANGENHELM_SCENE, {"Steel": metal_mat})
+	spangenhelm.setup(metal_mat)
+	gizmo = ShapeGizmo.new(spangenhelm)
+	gizmo.name = "ShapeGizmo"
+	add_child(gizmo)
 	_rebuild_helmet()
 	_build_ui()
 	_apply_finish(0)
@@ -293,6 +303,8 @@ func _update_helmet_visibility() -> void:
 		helmet_node.visible = wear_helmet and helmet_mode == 2
 	if spangenhelm:
 		spangenhelm.visible = wear_helmet and helmet_mode == 0
+		if not spangenhelm.visible:
+			_set_helmet_selected(false)
 	if modeled_helmet:
 		modeled_helmet.visible = wear_helmet and helmet_mode == 1
 	# The modelled helmet has a real face opening, so keep the head inside it.
@@ -322,16 +334,53 @@ func _update_camera() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mb := event as InputEventMouseButton
-		if mb.button_index == MOUSE_BUTTON_LEFT or mb.button_index == MOUSE_BUTTON_RIGHT:
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.pressed:
+				press_pos = mb.position
+				press_moved = false
+				drag_handle = gizmo.handle_at(camera, mb.position) if helmet_selected else ""
+				dragging = drag_handle == ""
+			else:
+				if drag_handle == "" and not press_moved:
+					_click(mb.position)
+				drag_handle = ""
+				dragging = false
+		elif mb.button_index == MOUSE_BUTTON_RIGHT:
 			dragging = mb.pressed
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
 			target_distance = maxf(0.35, target_distance * 0.9)
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
 			target_distance = minf(6.0, target_distance * 1.1)
-	elif event is InputEventMouseMotion and dragging:
+	elif event is InputEventMouseMotion:
 		var mm := event as InputEventMouseMotion
-		yaw -= mm.relative.x * 0.008
-		pitch = clampf(pitch + mm.relative.y * 0.006, -0.6, 1.2)
+		if mm.position.distance_to(press_pos) > 4.0:
+			press_moved = true
+		if drag_handle != "":
+			gizmo.drag(camera, drag_handle, mm.relative)
+		elif dragging:
+			yaw -= mm.relative.x * 0.008
+			pitch = clampf(pitch + mm.relative.y * 0.006, -0.6, 1.2)
+		elif helmet_selected:
+			gizmo.hovered = gizmo.handle_at(camera, mm.position)
+
+
+## A click (press + release without dragging): select or deselect the helmet.
+func _click(pos: Vector2) -> void:
+	var hit: bool = spangenhelm.visible and spangenhelm.ray_hits(
+		camera.project_ray_origin(pos), camera.project_ray_normal(pos))
+	_set_helmet_selected(hit)
+
+
+func _set_helmet_selected(on: bool) -> void:
+	if on == helmet_selected:
+		return
+	helmet_selected = on
+	spangenhelm.set_selected(on)
+	gizmo.visible = on
+	gizmo.hovered = ""
+	if on:
+		target_focus = Vector3(0, 1.74, 0)
+		target_distance = minf(target_distance, 1.25)
 
 
 # --------------------------------------------------------------------------
@@ -350,7 +399,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "v0.7  -  drag to orbit, scroll to zoom"
+	hint.text = "v0.8  -  drag to orbit, scroll to zoom"
 	hint.add_theme_color_override("font_color", Color(0.85, 0.83, 0.8))
 	hint.position = Vector2(24, 56)
 	layer.add_child(hint)
@@ -510,6 +559,11 @@ func _build_helmet_tab(box: VBoxContainer) -> void:
 	model_option.add_item("Procedural Designer")
 	box.add_child(model_option)
 
+	var shaped := VBoxContainer.new()
+	shaped.add_theme_constant_override("separation", 6)
+	box.add_child(shaped)
+	_build_shape_controls(shaped)
+
 	var modeled := VBoxContainer.new()
 	modeled.add_theme_constant_override("separation", 6)
 	modeled.visible = false
@@ -530,6 +584,7 @@ func _build_helmet_tab(box: VBoxContainer) -> void:
 	box.add_child(proc)
 	model_option.item_selected.connect(func(i: int) -> void:
 		helmet_mode = i
+		shaped.visible = i == 0
 		modeled.visible = i == 1
 		proc.visible = i == 2
 		_update_helmet_visibility())
@@ -577,6 +632,61 @@ func _build_helmet_tab(box: VBoxContainer) -> void:
 	proc.add_child(rnd)
 
 	_sync_helmet_ui()
+
+
+func _build_shape_controls(box: VBoxContainer) -> void:
+	var hint := Label.new()
+	hint.text = "Click the helmet to grab its handles: drag the down arrow to stretch it, the top arrow to skew it pointed or flat."
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(280, 0)
+	hint.add_theme_color_override("font_color", Color(0.8, 0.78, 0.74))
+	box.add_child(hint)
+
+	_header(box, "Shape")
+	var presets := HBoxContainer.new()
+	box.add_child(presets)
+	for pr in [["Dome", 0.0, 0.0], ["Pointed", 0.0, 1.0], ["Bucket", 0.135, -1.0]]:
+		var b := Button.new()
+		b.text = pr[0]
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var st: float = pr[1]
+		var cr: float = pr[2]
+		b.pressed.connect(func() -> void: spangenhelm.set_shape(st, cr))
+		presets.add_child(b)
+
+	for spec in [["Stretch", "stretch", 0.0, ShapedHelmet.MAX_STRETCH], ["Skew", "crown", -1.0, 1.0]]:
+		var lbl := Label.new()
+		box.add_child(lbl)
+		var sl := HSlider.new()
+		sl.min_value = spec[2]
+		sl.max_value = spec[3]
+		sl.step = 0.001
+		sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		box.add_child(sl)
+		var key: String = spec[1]
+		sl.value_changed.connect(func(v: float) -> void:
+			if key == "stretch":
+				spangenhelm.set_shape(v, spangenhelm.crown)
+			else:
+				spangenhelm.set_shape(spangenhelm.stretch, v))
+		shape_sliders[key] = [sl, lbl]
+	spangenhelm.shape_changed.connect(_sync_shape_ui)
+	_sync_shape_ui()
+
+
+func _sync_shape_ui() -> void:
+	var st: Array = shape_sliders["stretch"]
+	(st[0] as HSlider).set_value_no_signal(spangenhelm.stretch)
+	(st[1] as Label).text = "Stretch: %d cm below the brow" % roundi(spangenhelm.stretch * 100.0)
+	var cr: Array = shape_sliders["crown"]
+	(cr[0] as HSlider).set_value_no_signal(spangenhelm.crown)
+	var c: float = spangenhelm.crown
+	var word := "Round"
+	if c > 0.05:
+		word = "Pointed %d%%" % roundi(c * 100.0)
+	elif c < -0.05:
+		word = "Flat %d%%" % roundi(-c * 100.0)
+	(cr[1] as Label).text = "Skew: " + word
 
 
 func _model_slider(parent: Control, spec: Array) -> void:

@@ -10,6 +10,17 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Proportions](docs/proportions.png)
 
+## v0.8 – stretch & skew
+
+Click the spangenhelm to select it (it glows) and two handles appear:
+
+- **Stretch** (down arrow, front edge): drag down to extend the walls below the brow, over the face and down to the chin. Once it passes the eyes the shell widens slightly so it clears the nose.
+- **Skew** (double arrow, crown): drag up to turn the round dome into a pointed gothic arch; drag down to flatten it into a bucket-helm top with straight sides.
+
+The Helmet tab has matching **Stretch** and **Skew** sliders and **Dome / Pointed / Bucket** presets. Click empty space to deselect; dragging anywhere else still orbits the camera. The shell is generated live (`scripts/pieces/shaped_helmet.gd`, handles in `shape_gizmo.gd`), and a test checks the head stays inside it for every combination.
+
+![Stretch and skew](docs/stretch_skew.png)
+
 ## v0.7 – carved head
 
 The mannequin's head is reshaped from a reference outline: fuller rounded skull with the back of the head bulging behind the neck, upright forehead, brow ridge, eye sockets with closed lids, nose, lips, cheekbones, a defined jaw and chin, and ears. The neck is thicker and leans slightly forward into the back of the jaw.
