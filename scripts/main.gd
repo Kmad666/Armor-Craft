@@ -3,6 +3,8 @@ extends Node3D
 ## Everything is built in code so the project stays tiny and easy to iterate on.
 
 const HelmetBuilder := preload("res://scripts/helmet_builder.gd")
+const HelmetPiece := preload("res://scripts/pieces/helmet_piece.gd")
+const BASCINET_SCENE := preload("res://assets/pieces/helmet_bascinet.glb")
 const SuitBuilder := preload("res://scripts/suit_builder.gd")
 const METAL_SHADER := preload("res://shaders/metal.gdshader")
 const MAIL_SHADER := preload("res://shaders/mail.gdshader")
@@ -54,6 +56,16 @@ const VISOR_SLIDERS := [
 const HELMET_TOGGLES := [["Pig-Face Visor", "visor"], ["Breaths", "breaths"], ["Plume", "plume"], ["Rolled Rim", "rim"]]
 
 const HELMET_Y := 1.6
+## Head socket: modelled helmets are authored around the centre of the head.
+const HEAD_SOCKET := Vector3(0.0, 1.735, 0.0)
+## Modelled helmet sliders: label, morph, min, max ("Visor" opens the hinge).
+const MODEL_SLIDERS := [
+	["Width", "Width", -1.0, 1.0],
+	["Height", "Height", -1.0, 1.0],
+	["Apex", "Apex", -0.6, 1.0],
+	["Snout", "Snout", -0.8, 1.0],
+	["Visor Raised", "Visor", 0.0, 1.0],
+]
 
 var camera: Camera3D
 var yaw := 0.55
@@ -77,6 +89,9 @@ var dark_mat: StandardMaterial3D
 
 var head_node: MeshInstance3D
 var helmet_node: Node3D
+var modeled_helmet: Node3D
+var helmet_mode := 0  # 0 = modelled bascinet, 1 = procedural designer
+var model_controls := {}
 var groups := {}
 var group_checks := {}
 var wear_helmet := true
@@ -103,6 +118,11 @@ func _ready() -> void:
 		"linen": linen_mat, "cloth": cloth_mat, "brass": brass_mat,
 	}).build()
 	helmet_params = HELMET_PRESETS["Hounskull Bascinet"].duplicate()
+	modeled_helmet = HelmetPiece.new()
+	modeled_helmet.name = "ModeledHelmet"
+	add_child(modeled_helmet)
+	modeled_helmet.setup(BASCINET_SCENE, {"Steel": metal_mat, "Leather": leather_mat})
+	modeled_helmet.position = HEAD_SOCKET
 	_rebuild_helmet()
 	_build_ui()
 	_apply_finish(0)
@@ -290,9 +310,17 @@ func _rebuild_helmet() -> void:
 		helmet_node.queue_free()
 	helmet_node = HelmetBuilder.build(helmet_params, metal_mat, dark_mat, cloth_mat)
 	helmet_node.position = Vector3(0, HELMET_Y, 0)
-	helmet_node.visible = wear_helmet
 	add_child(helmet_node)
-	head_node.visible = not wear_helmet
+	_update_helmet_visibility()
+
+
+func _update_helmet_visibility() -> void:
+	if helmet_node:
+		helmet_node.visible = wear_helmet and helmet_mode == 1
+	if modeled_helmet:
+		modeled_helmet.visible = wear_helmet and helmet_mode == 0
+	# The modelled helmet has a real face opening, so keep the head inside it.
+	head_node.visible = not wear_helmet or helmet_mode == 0
 
 
 # --------------------------------------------------------------------------
@@ -346,7 +374,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "v0.3  -  drag to orbit, scroll to zoom"
+	hint.text = "v0.4  -  drag to orbit, scroll to zoom"
 	hint.add_theme_color_override("font_color", Color(0.85, 0.83, 0.8))
 	hint.position = Vector2(24, 56)
 	layer.add_child(hint)
@@ -460,36 +488,64 @@ func _build_helmet_tab(box: VBoxContainer) -> void:
 	wear.button_pressed = true
 	wear.toggled.connect(func(v: bool) -> void:
 		wear_helmet = v
-		helmet_node.visible = v
-		head_node.visible = not v)
+		_update_helmet_visibility())
 	box.add_child(wear)
 
-	_header(box, "Preset")
+	_header(box, "Helmet")
+	var model_option := OptionButton.new()
+	model_option.add_item("Hounskull Bascinet (modelled)")
+	model_option.add_item("Procedural Designer")
+	box.add_child(model_option)
+
+	var modeled := VBoxContainer.new()
+	modeled.add_theme_constant_override("separation", 6)
+	box.add_child(modeled)
+	_header(modeled, "Morph")
+	for spec in MODEL_SLIDERS:
+		_model_slider(modeled, spec)
+	var reset := Button.new()
+	reset.text = "Reset Shape"
+	reset.pressed.connect(func() -> void:
+		for spec in MODEL_SLIDERS:
+			(model_controls[spec[1]] as HSlider).value = 0.0)
+	modeled.add_child(reset)
+
+	var proc := VBoxContainer.new()
+	proc.add_theme_constant_override("separation", 6)
+	proc.visible = false
+	box.add_child(proc)
+	model_option.item_selected.connect(func(i: int) -> void:
+		helmet_mode = i
+		modeled.visible = i == 0
+		proc.visible = i == 1
+		_update_helmet_visibility())
+
+	_header(proc, "Preset")
 	preset_option = OptionButton.new()
 	for k in HELMET_PRESETS.keys():
 		preset_option.add_item(k)
 	preset_option.item_selected.connect(_on_preset)
-	box.add_child(preset_option)
+	proc.add_child(preset_option)
 
-	_header(box, "Shape")
+	_header(proc, "Shape")
 	for s in HELMET_SLIDERS:
-		_helmet_slider(box, s)
+		_helmet_slider(proc, s)
 
-	_header(box, "Visor & Slits")
+	_header(proc, "Visor & Slits")
 	style_option = OptionButton.new()
 	for st in HelmetBuilder.SLIT_STYLES:
 		style_option.add_item(st)
 	style_option.item_selected.connect(func(i: int) -> void:
 		helmet_params["slit_style"] = i
 		_rebuild_helmet())
-	box.add_child(style_option)
+	proc.add_child(style_option)
 	for s in VISOR_SLIDERS:
-		_helmet_slider(box, s)
+		_helmet_slider(proc, s)
 
-	_header(box, "Features")
+	_header(proc, "Features")
 	var grid := GridContainer.new()
 	grid.columns = 2
-	box.add_child(grid)
+	proc.add_child(grid)
 	for tg in HELMET_TOGGLES:
 		var key: String = tg[1]
 		var cb := CheckBox.new()
@@ -504,9 +560,30 @@ func _build_helmet_tab(box: VBoxContainer) -> void:
 	var rnd := Button.new()
 	rnd.text = "Forge Random Helmet"
 	rnd.pressed.connect(_randomize_helmet)
-	box.add_child(rnd)
+	proc.add_child(rnd)
 
 	_sync_helmet_ui()
+
+
+func _model_slider(parent: Control, spec: Array) -> void:
+	var label_text: String = spec[0]
+	var key: String = spec[1]
+	var lbl := Label.new()
+	lbl.text = "%s: 0.00" % label_text
+	parent.add_child(lbl)
+	var sl := HSlider.new()
+	sl.min_value = spec[2]
+	sl.max_value = spec[3]
+	sl.step = 0.01
+	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(sl)
+	sl.value_changed.connect(func(v: float) -> void:
+		lbl.text = "%s: %.2f" % [label_text, v]
+		if key == "Visor":
+			modeled_helmet.set_visor_open(v)
+		else:
+			modeled_helmet.set_morph(key, v))
+	model_controls[key] = sl
 
 
 func _helmet_slider(parent: Control, spec: Array) -> void:
@@ -558,7 +635,7 @@ func _on_preset(i: int) -> void:
 
 func _on_tab_changed(tab: int) -> void:
 	if tab == 1:
-		target_focus = Vector3(0, 1.74, 0)
+		target_focus = Vector3(0, 1.76, 0)
 		target_distance = 1.05
 	else:
 		target_focus = Vector3(0, 1.0, 0)

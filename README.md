@@ -10,6 +10,19 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Proportions](docs/proportions.png)
 
+## v0.4 – modelled pieces
+
+Armour is moving from one procedural suit to **separately modelled pieces** that snap onto the mannequin at sockets. The first is the **hounskull bascinet**, modelled in Blender:
+
+- Pointed skull with the face opening actually cut out, 1.8 mm plate thickness, padded leather lining
+- Pig-faced visor with a real eye slit (split by a centre bar) and 51 breath holes, rolled edges everywhere
+- Hinge arms, rosette pivot bosses, lining rivets, and vervelles round the rim for the aventail
+- Shape keys exported as morphs: **Width, Height, Apex, Snout** (sliders go negative too), plus **Visor Raised** on the hinge
+
+The source is a script, `art/blender/build_helmet_bascinet.py`, so the model rebuilds from numbers; the `.blend` sits next to it for hand-tweaking in Blender. Export goes to `assets/pieces/helmet_bascinet.glb`, and `scripts/pieces/helmet_piece.gd` loads any piece, swaps in the game's steel shader, and drives its morphs.
+
+![Bascinet](docs/bascinet_render.png)
+
 ## v0.3 – what's in
 
 Body proportions are measured off the reference (about seven helmets tall, 1.86 m to the bascinet apex) and live as named landmarks at the top of `scripts/suit_builder.gd`: shoulder, elbow, wrist, waist, hem, knee, plus arm and leg centre-lines. Change one number and every piece follows.
@@ -44,6 +57,9 @@ scripts/main.gd           # world, materials, camera, UI
 scripts/suit_builder.gd   # the full harness, grouped for toggling
 scripts/helmet_builder.gd # procedural helmet + hounskull visor
 scripts/mesh_kit.gd       # parametric surfaces, rolled edges, rivets
+scripts/pieces/           # loaders for modelled pieces (helmet_piece.gd)
+assets/pieces/            # exported .glb pieces
+art/blender/              # Blender build scripts, .blend sources, preview renderer
 shaders/                  # hammered steel + chainmail
 .github/workflows/        # web export + Pages deploy
 ```
