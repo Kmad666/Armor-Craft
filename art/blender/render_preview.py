@@ -52,9 +52,14 @@ def light(name, loc, energy, size):
     o.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
 
-light("Key", (-0.6, -0.8, 0.6), 60, 0.6)
-light("Rim", (0.7, 0.6, 0.4), 40, 0.5)
-light("Fill", (0.8, -0.6, -0.1), 12, 1.0)
+if views == "body":
+    light("Key", (-1.8, -2.4, 2.6), 380, 1.6)
+    light("Rim", (2.1, 1.8, 2.2), 260, 1.6)
+    light("Fill", (2.4, -1.8, 0.8), 60, 2.5)
+else:
+    light("Key", (-0.6, -0.8, 0.6), 60, 0.6)
+    light("Rim", (0.7, 0.6, 0.4), 40, 0.5)
+    light("Fill", (0.8, -0.6, -0.1), 12, 1.0)
 
 cam_data = bpy.data.cameras.new("Cam")
 cam_data.lens = 85
@@ -71,6 +76,13 @@ def shoot(name, az_deg, el_deg, dist=1.45, target=(0, -0.04, 0.01)):
     sc.render.filepath = os.path.join(out_dir, name + ".png")
     bpy.ops.render.render(write_still=True)
 
+
+if views == "body":
+    cam_data.lens = 70
+    for name, az, el in (("body_front", 0, 2), ("body_three_quarter", -35, 6), ("body_side", -90, 2), ("body_back", 180, 4)):
+        shoot(name, az, el, dist=4.6, target=(0, 0, 0.9))
+    cam_data.lens = 85
+    shoot("body_hand", -60, 0, dist=1.0, target=(0.27, -0.02, 0.86))
 
 pivot = bpy.data.objects.get("VisorPivot")
 if views == "quick":

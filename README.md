@@ -10,6 +10,22 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Proportions](docs/proportions.png)
 
+## v0.5 – the wooden mannequin
+
+Everything is now fitted to a **jointed wooden artist's mannequin**, traced from an outline drawn over the reference harness.
+
+![Mannequin](docs/mannequin.png)
+
+**Outline vs. mannequin** (red lines: the traced outline)
+
+![Outline overlay](docs/mannequin_outline.png)
+
+- All proportions live in **`assets/mannequin/measurements.json`** (metres): height, eye level, shoulder breadth, chest/waist/hip width and depth, joint heights, limb girths, hand and foot sizes. `art/blender/build_mannequin.py` rebuilds the figure from that file; the Body tab in game lists the same numbers in cm and inches.
+- Exported as a **joint hierarchy** (Pelvis → Waist → Chest → Neck → Head; Shoulder → Elbow → Wrist; Hip → Knee → Ankle, left and right) with the carved segments hanging off each joint, so the game can pose it by rotating joints and apply new measurements by moving joints and scaling segments.
+- Armour attaches to **sockets**: the bascinet now sits on `Socket_Head` (eye level). More sockets get added as each piece is modelled.
+- Procedural varnished-wood shader (`shaders/wood.gdshader`), darker wood on the ball joints.
+- The older all-in-one procedural suit is still there, hidden by default (Body tab → Show → Legacy procedural suit).
+
 ## v0.4 – modelled pieces
 
 Armour is moving from one procedural suit to **separately modelled pieces** that snap onto the mannequin at sockets. The first is the **hounskull bascinet**, modelled in Blender:
@@ -57,8 +73,9 @@ scripts/main.gd           # world, materials, camera, UI
 scripts/suit_builder.gd   # the full harness, grouped for toggling
 scripts/helmet_builder.gd # procedural helmet + hounskull visor
 scripts/mesh_kit.gd       # parametric surfaces, rolled edges, rivets
-scripts/pieces/           # loaders for modelled pieces (helmet_piece.gd)
+scripts/pieces/           # mannequin.gd + loaders for modelled pieces (helmet_piece.gd)
 assets/pieces/            # exported .glb pieces
+assets/mannequin/         # mannequin_wood.glb + measurements.json
 art/blender/              # Blender build scripts, .blend sources, preview renderer
 shaders/                  # hammered steel + chainmail
 .github/workflows/        # web export + Pages deploy

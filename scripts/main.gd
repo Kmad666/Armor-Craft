@@ -6,6 +6,9 @@ const HelmetBuilder := preload("res://scripts/helmet_builder.gd")
 const HelmetPiece := preload("res://scripts/pieces/helmet_piece.gd")
 const BASCINET_SCENE := preload("res://assets/pieces/helmet_bascinet.glb")
 const SuitBuilder := preload("res://scripts/suit_builder.gd")
+const Mannequin := preload("res://scripts/pieces/mannequin.gd")
+const MANNEQUIN_SCENE := preload("res://assets/mannequin/mannequin_wood.glb")
+const WOOD_SHADER := preload("res://shaders/wood.gdshader")
 const METAL_SHADER := preload("res://shaders/metal.gdshader")
 const MAIL_SHADER := preload("res://shaders/mail.gdshader")
 
@@ -55,9 +58,8 @@ const VISOR_SLIDERS := [
 ]
 const HELMET_TOGGLES := [["Pig-Face Visor", "visor"], ["Breaths", "breaths"], ["Plume", "plume"], ["Rolled Rim", "rim"]]
 
-const HELMET_Y := 1.6
-## Head socket: modelled helmets are authored around the centre of the head.
-const HEAD_SOCKET := Vector3(0.0, 1.735, 0.0)
+## Rim height of the procedural (legacy) helmet.
+const HELMET_Y := 1.545
 ## Modelled helmet sliders: label, morph, min, max ("Visor" opens the hinge).
 const MODEL_SLIDERS := [
 	["Width", "Width", -1.0, 1.0],
@@ -87,7 +89,11 @@ var linen_mat: StandardMaterial3D
 var brass_mat: StandardMaterial3D
 var dark_mat: StandardMaterial3D
 
-var head_node: MeshInstance3D
+var head_node: Node3D
+var mannequin: Node3D
+var suit_root: Node3D
+var wood_mat: ShaderMaterial
+var wood_dark_mat: ShaderMaterial
 var helmet_node: Node3D
 var modeled_helmet: Node3D
 var helmet_mode := 0  # 0 = modelled bascinet, 1 = procedural designer
@@ -110,19 +116,20 @@ func _ready() -> void:
 	_build_environment()
 	_build_materials()
 	_build_mannequin()
-	var suit := Node3D.new()
-	suit.name = "Suit"
-	add_child(suit)
-	groups = SuitBuilder.new(suit, {
+	suit_root = Node3D.new()
+	suit_root.name = "Suit"
+	suit_root.visible = false  # legacy procedural suit; pieces are being modelled one by one
+	add_child(suit_root)
+	groups = SuitBuilder.new(suit_root, {
 		"metal": metal_mat, "mail": mail_mat, "leather": leather_mat,
 		"linen": linen_mat, "cloth": cloth_mat, "brass": brass_mat,
 	}).build()
 	helmet_params = HELMET_PRESETS["Hounskull Bascinet"].duplicate()
 	modeled_helmet = HelmetPiece.new()
 	modeled_helmet.name = "ModeledHelmet"
-	add_child(modeled_helmet)
+	# Helmets are authored around the centre of the head at eye level: the head socket.
+	mannequin.node("Socket_Head").add_child(modeled_helmet)
 	modeled_helmet.setup(BASCINET_SCENE, {"Steel": metal_mat, "Leather": leather_mat})
-	modeled_helmet.position = HEAD_SOCKET
 	_rebuild_helmet()
 	_build_ui()
 	_apply_finish(0)
@@ -249,60 +256,21 @@ func _apply_finish(idx: int) -> void:
 
 
 # --------------------------------------------------------------------------
-# Mannequin (arming doublet and hose, visible when plates are removed)
+# Mannequin: carved wooden figure built in Blender from measurements.json
 # --------------------------------------------------------------------------
 
-func _body(mesh: Mesh, mat: Material, pos: Vector3, scl := Vector3.ONE) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = mat
-	mi.position = pos
-	mi.scale = scl
-	add_child(mi)
-	return mi
-
-
-func _capsule_between(a: Vector3, b: Vector3, r: float, mat: Material) -> void:
-	var cm := CapsuleMesh.new()
-	cm.radius = r
-	cm.height = a.distance_to(b) + r * 2.0
-	var mi := MeshInstance3D.new()
-	mi.mesh = cm
-	mi.material_override = mat
-	mi.transform = Transform3D(Basis(Quaternion(Vector3.UP, (a - b).normalized())), (a + b) * 0.5)
-	add_child(mi)
-
-
 func _build_mannequin() -> void:
-	var head := SphereMesh.new()
-	head.radius = 0.095
-	head.height = 0.22
-	head_node = _body(head, body_mat, Vector3(0, 1.735, 0.005), Vector3(0.95, 1.0, 1.05))
-	var neck := CylinderMesh.new()
-	neck.top_radius = 0.048
-	neck.bottom_radius = 0.056
-	neck.height = 0.13
-	_body(neck, body_mat, Vector3(0, 1.6, 0))
-	var torso := CapsuleMesh.new()
-	torso.radius = 0.13
-	torso.height = 0.5
-	_body(torso, body_mat, Vector3(0, 1.33, 0), Vector3(1.0, 1.0, 0.72))
-	var hips := CapsuleMesh.new()
-	hips.radius = 0.13
-	hips.height = 0.3
-	_body(hips, hose_mat, Vector3(0, 1.0, 0), Vector3(1.0, 1.0, 0.75))
-	var SB := SuitBuilder
-	for sx in [-1.0, 1.0]:
-		var sh: Vector3 = SB.arm_center(sx, SB.SHOULDER_Y - 0.05)
-		var el: Vector3 = SB.arm_center(sx, SB.ELBOW_Y)
-		var wr: Vector3 = SB.arm_center(sx, SB.WRIST_Y)
-		_capsule_between(sh, el, 0.042, body_mat)
-		_capsule_between(el, wr, 0.037, body_mat)
-		var hip: Vector3 = SB.leg_center(sx, SB.HIP_Y)
-		var knee: Vector3 = SB.leg_center(sx, SB.KNEE_Y)
-		var ankle: Vector3 = SB.leg_center(sx, 0.09)
-		_capsule_between(hip, knee, 0.058, hose_mat)
-		_capsule_between(knee, ankle, 0.033, hose_mat)
+	wood_mat = ShaderMaterial.new()
+	wood_mat.shader = WOOD_SHADER
+	wood_dark_mat = ShaderMaterial.new()
+	wood_dark_mat.shader = WOOD_SHADER
+	wood_dark_mat.set_shader_parameter("light_col", Color(0.17, 0.09, 0.04))
+	wood_dark_mat.set_shader_parameter("dark_col", Color(0.1, 0.05, 0.022))
+	mannequin = Mannequin.new()
+	mannequin.name = "Mannequin"
+	add_child(mannequin)
+	mannequin.setup(MANNEQUIN_SCENE, {"Wood": wood_mat, "WoodDark": wood_dark_mat})
+	head_node = mannequin.node("HeadBlock")
 
 
 func _rebuild_helmet() -> void:
@@ -374,7 +342,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "v0.4  -  drag to orbit, scroll to zoom"
+	hint.text = "v0.5  -  drag to orbit, scroll to zoom"
 	hint.add_theme_color_override("font_color", Color(0.85, 0.83, 0.8))
 	hint.position = Vector2(24, 56)
 	layer.add_child(hint)
@@ -406,6 +374,7 @@ func _build_ui() -> void:
 	panel.add_child(tabs)
 	tabs.tab_changed.connect(_on_tab_changed)
 
+	_build_body_tab(_make_tab(tabs, "Body"))
 	_build_suit_tab(_make_tab(tabs, "Suit"))
 	_build_helmet_tab(_make_tab(tabs, "Helmet"))
 
@@ -428,6 +397,41 @@ func _header(parent: Control, text: String) -> void:
 	l.add_theme_color_override("font_color", Color(0.93, 0.78, 0.45))
 	l.add_theme_font_size_override("font_size", 15)
 	parent.add_child(l)
+
+
+func _build_body_tab(box: VBoxContainer) -> void:
+	_header(box, "Wooden Mannequin")
+	var note := Label.new()
+	note.text = "Every armour piece is fitted to this figure. Measurements from your outline:"
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size = Vector2(280, 0)
+	note.add_theme_color_override("font_color", Color(0.8, 0.78, 0.74))
+	box.add_child(note)
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", 14)
+	box.add_child(grid)
+	for row in mannequin.summary():
+		var metres: float = row[1]
+		var name_l := Label.new()
+		name_l.text = row[0]
+		name_l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(name_l)
+		var cm := Label.new()
+		cm.text = "%.1f cm" % (metres * 100.0)
+		cm.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		grid.add_child(cm)
+		var inch := Label.new()
+		inch.text = "%.1f in" % (metres / 0.0254)
+		inch.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		inch.add_theme_color_override("font_color", Color(0.65, 0.63, 0.6))
+		grid.add_child(inch)
+
+	_header(box, "Show")
+	var show_suit := CheckBox.new()
+	show_suit.text = "Legacy procedural suit"
+	show_suit.toggled.connect(func(v: bool) -> void: suit_root.visible = v)
+	box.add_child(show_suit)
 
 
 func _build_suit_tab(box: VBoxContainer) -> void:
@@ -634,7 +638,7 @@ func _on_preset(i: int) -> void:
 
 
 func _on_tab_changed(tab: int) -> void:
-	if tab == 1:
+	if tab == 2:
 		target_focus = Vector3(0, 1.76, 0)
 		target_distance = 1.05
 	else:
