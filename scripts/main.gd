@@ -105,6 +105,13 @@ var press_pos := Vector2.ZERO
 var press_moved := false
 var drag_handle := ""
 var shape_sliders := {}
+var helm_mat: ShaderMaterial
+var hole_mode := false
+var hole_shape := 0
+var hole_w := 0.009
+var hole_h := 0.009
+var hole_mirror := true
+var hole_ui := {}
 var helmet_mode := 0  # 0 = spangenhelm, 1 = modelled bascinet, 2 = procedural designer
 var model_controls := {}
 var groups := {}
@@ -142,7 +149,10 @@ func _ready() -> void:
 	spangenhelm = ShapedHelmet.new()
 	spangenhelm.name = "Spangenhelm"
 	mannequin.node("Socket_Head").add_child(spangenhelm)
-	spangenhelm.setup(metal_mat)
+	# own copy of the steel so its holes don't cut other pieces
+	helm_mat = ShaderMaterial.new()
+	helm_mat.shader = METAL_SHADER
+	spangenhelm.setup(helm_mat)
 	gizmo = ShapeGizmo.new(spangenhelm)
 	gizmo.name = "ShapeGizmo"
 	add_child(gizmo)
@@ -267,6 +277,9 @@ func _apply_finish(idx: int) -> void:
 	metal_mat.set_shader_parameter("metallic", f["metal"])
 	metal_mat.set_shader_parameter("roughness", f["rough"])
 	metal_mat.set_shader_parameter("patina", f["patina"])
+	if helm_mat:
+		for k in ["albedo", "metallic", "roughness", "patina"]:
+			helm_mat.set_shader_parameter(k, metal_mat.get_shader_parameter(k))
 	mail_mat.set_shader_parameter("albedo", f["mail"])
 	mail_mat.set_shader_parameter("metallic", f["metal"])
 
@@ -360,12 +373,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif dragging:
 			yaw -= mm.relative.x * 0.008
 			pitch = clampf(pitch + mm.relative.y * 0.006, -0.6, 1.2)
+		elif hole_mode:
+			_update_hole_preview(mm.position)
 		elif helmet_selected:
 			gizmo.hovered = gizmo.handle_at(camera, mm.position)
 
 
 ## A click (press + release without dragging): select or deselect the helmet.
 func _click(pos: Vector2) -> void:
+	if hole_mode:
+		if not spangenhelm.visible:
+			return
+		var hp = spangenhelm.hit_local(camera.project_ray_origin(pos), camera.project_ray_normal(pos))
+		if hp != null and not spangenhelm.remove_hole_at(hp):
+			spangenhelm.add_hole(hp, hole_shape, hole_w, hole_h, hole_mirror)
+		_update_hole_preview(pos)
+		return
 	var hit: bool = spangenhelm.visible and spangenhelm.ray_hits(
 		camera.project_ray_origin(pos), camera.project_ray_normal(pos))
 	_set_helmet_selected(hit)
@@ -399,7 +422,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "v0.8  -  drag to orbit, scroll to zoom"
+	hint.text = "v0.9  -  drag to orbit, scroll to zoom"
 	hint.add_theme_color_override("font_color", Color(0.85, 0.83, 0.8))
 	hint.position = Vector2(24, 56)
 	layer.add_child(hint)
@@ -585,6 +608,8 @@ func _build_helmet_tab(box: VBoxContainer) -> void:
 	model_option.item_selected.connect(func(i: int) -> void:
 		helmet_mode = i
 		shaped.visible = i == 0
+		if i != 0 and hole_mode:
+			_set_hole_mode(false)
 		modeled.visible = i == 1
 		proc.visible = i == 2
 		_update_helmet_visibility())
@@ -672,6 +697,137 @@ func _build_shape_controls(box: VBoxContainer) -> void:
 		shape_sliders[key] = [sl, lbl]
 	spangenhelm.shape_changed.connect(_sync_shape_ui)
 	_sync_shape_ui()
+	_build_hole_controls(box)
+
+
+func _update_hole_preview(pos: Vector2) -> void:
+	var hp = null
+	if hole_mode and spangenhelm.visible:
+		hp = spangenhelm.hit_local(camera.project_ray_origin(pos), camera.project_ray_normal(pos))
+	spangenhelm.set_preview(hp, hole_shape, hole_w, hole_h)
+
+
+func _set_hole_mode(on: bool) -> void:
+	hole_mode = on
+	if on:
+		_set_helmet_selected(false)
+		target_focus = Vector3(0, 1.72, 0)
+		target_distance = minf(target_distance, 1.1)
+	else:
+		spangenhelm.set_preview(null, 0, 0.0, 0.0)
+	var b: Button = hole_ui["toggle"]
+	b.set_pressed_no_signal(on)
+	b.text = "Adding Holes: click the helmet (click a hole to remove)" if on else "Add Holes"
+
+
+const HOLE_SHAPES := [
+	# name, default width, default height, width range, height range
+	["Round", 0.009, 0.009, [0.004, 0.03], [0.004, 0.03]],
+	["Slot", 0.048, 0.01, [0.015, 0.12], [0.004, 0.03]],
+	["Cross", 0.022, 0.006, [0.01, 0.05], [0.003, 0.015]],
+]
+
+
+func _build_hole_controls(box: VBoxContainer) -> void:
+	_header(box, "Holes")
+	var toggle := Button.new()
+	toggle.toggle_mode = true
+	toggle.text = "Add Holes"
+	toggle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	toggle.toggled.connect(_set_hole_mode)
+	box.add_child(toggle)
+	hole_ui["toggle"] = toggle
+
+	var row := HBoxContainer.new()
+	box.add_child(row)
+	var shape_opt := OptionButton.new()
+	for hs in HOLE_SHAPES:
+		shape_opt.add_item(hs[0])
+	shape_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(shape_opt)
+	var mirror := CheckBox.new()
+	mirror.text = "Mirror"
+	mirror.button_pressed = true
+	mirror.toggled.connect(func(v: bool) -> void: hole_mirror = v)
+	row.add_child(mirror)
+
+	for key in ["w", "h"]:
+		var lbl := Label.new()
+		box.add_child(lbl)
+		var sl := HSlider.new()
+		sl.step = 0.0005
+		sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		box.add_child(sl)
+		hole_ui[key] = [sl, lbl]
+		sl.value_changed.connect(func(v: float) -> void:
+			if key == "w":
+				hole_w = v
+			else:
+				hole_h = v
+			_sync_hole_labels())
+	shape_opt.item_selected.connect(_select_hole_shape)
+	_select_hole_shape(0)
+
+	var quick := HBoxContainer.new()
+	box.add_child(quick)
+	for q in [["Eye Slits", _add_eye_slits], ["Breaths", _add_breaths]]:
+		var b := Button.new()
+		b.text = q[0]
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(q[1])
+		quick.add_child(b)
+	var edit := HBoxContainer.new()
+	box.add_child(edit)
+	for q in [["Undo Hole", func() -> void: spangenhelm.undo_hole()], ["Clear Holes", func() -> void: spangenhelm.clear_holes()]]:
+		var b := Button.new()
+		b.text = q[0]
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.pressed.connect(q[1])
+		edit.add_child(b)
+
+
+func _select_hole_shape(i: int) -> void:
+	hole_shape = i
+	var hs: Array = HOLE_SHAPES[i]
+	var w: Array = hole_ui["w"]
+	var h: Array = hole_ui["h"]
+	# set ranges first (changing a range can clamp the value and fire the slider)
+	(w[0] as HSlider).min_value = hs[3][0]
+	(w[0] as HSlider).max_value = hs[3][1]
+	(h[0] as HSlider).min_value = hs[4][0]
+	(h[0] as HSlider).max_value = hs[4][1]
+	hole_w = hs[1]
+	hole_h = hs[2]
+	(w[0] as HSlider).set_value_no_signal(hole_w)
+	(h[0] as HSlider).set_value_no_signal(hole_h)
+	(h[0] as HSlider).visible = i != 0
+	(h[1] as Label).visible = i != 0
+	_sync_hole_labels()
+
+
+func _sync_hole_labels() -> void:
+	var w_name := "Diameter" if hole_shape == 0 else ("Length" if hole_shape == 1 else "Arm length")
+	(hole_ui["w"][1] as Label).text = "%s: %.1f cm" % [w_name, hole_w * 100.0]
+	(hole_ui["h"][1] as Label).text = "%s: %.1f cm" % ["Width" if hole_shape == 1 else "Arm width", hole_h * 100.0]
+
+
+## Two slots at eye level (stretches the helmet over the eyes if needed).
+func _add_eye_slits() -> void:
+	if spangenhelm.stretch < 0.06:
+		spangenhelm.set_shape(0.06, spangenhelm.crown)
+	spangenhelm.add_hole_set([[0.36, 0.0, 1, 0.05, 0.0095]], true)
+
+
+## Rows of round breathing holes over the mouth and cheeks.
+func _add_breaths() -> void:
+	if spangenhelm.stretch < 0.13:
+		spangenhelm.set_shape(0.135, spangenhelm.crown)
+	var set := []
+	for row in 4:
+		var y := -0.05 - row * 0.014
+		for col in 5 - row:
+			set.append([0.42 + col * 0.11 + row * 0.03, y, 0, 0.0075, 0.0075])
+	spangenhelm.add_hole_set(set, true)
 
 
 func _sync_shape_ui() -> void:

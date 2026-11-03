@@ -26,11 +26,20 @@ const WALL_RINGS := 10
 var stretch := 0.0
 var crown := 0.0
 
+## Holes punched through the shell. Each is pinned to the surface by its
+## angle around the helmet and its height, so it rides along when the shape
+## is stretched or skewed: {a, y, shape (0 round, 1 slot, 2 cross), w, h, group}
+var holes: Array = []
+const MAX_HOLES := 64
+var _group := 0
+var _mat: ShaderMaterial
+
 var _mi: MeshInstance3D
 var _overlay: ShaderMaterial
 
 
-func setup(mat: Material) -> void:
+func setup(mat: ShaderMaterial) -> void:
+	_mat = mat
 	_mi = MeshInstance3D.new()
 	_mi.name = "Shell"
 	_mi.material_override = mat
@@ -117,15 +126,160 @@ func contains(p: Vector3) -> bool:
 
 ## Ray in global space -> hit?
 func ray_hits(origin: Vector3, dir: Vector3) -> bool:
+	return hit_local(origin, dir) != null
+
+
+## First point (helmet-local) where a global ray enters the shell, or null.
+func hit_local(origin: Vector3, dir: Vector3):
 	var inv := global_transform.affine_inverse()
 	var o := inv * origin
 	var d := (inv.basis * dir).normalized()
-	var t := 0.0
-	while t < 10.0:
-		if contains(o + d * t):
-			return true
+	# start just before the helmet's bounding sphere
+	var t := maxf(0.0, -o.dot(d) - 0.35)
+	var t_end := t + 0.8
+	while t < t_end:
+		var p := o + d * t
+		if contains(p):
+			# refine to the surface
+			var lo := t - 0.002
+			var hi := t
+			for i in 10:
+				var m := (lo + hi) * 0.5
+				if contains(o + d * m):
+					hi = m
+				else:
+					lo = m
+			return o + d * hi
 		t += 0.002
+	return null
+
+
+# --------------------------------------------------------------------------
+# Holes
+# --------------------------------------------------------------------------
+
+## Surface point and outward normal at angle a (0 = front) and height y.
+func surface_at(a: float, y: float) -> Array:
+	var p := _surf(a, y)
+	var e := 0.002
+	var n := (_surf(a + e, y) - _surf(a - e, y)).cross(_surf(a, y + e) - _surf(a, y - e))
+	if n.length_squared() < 1e-14:
+		n = Vector3.UP
+	n = n.normalized()
+	if n.dot(Vector3(p.x, maxf(p.y - RIM, 0.0) * 0.5, p.z)) < 0.0:
+		n = -n
+	return [p, n]
+
+
+func _surf(a: float, y: float) -> Vector3:
+	var g := grow()
+	var f := 1.0 if y < RIM else _radius_at((y - RIM) / dome_height())
+	return Vector3(sin(a) * RX * g * f, y, cos(a) * RZ * g * f)
+
+
+static func angle_of(p: Vector3) -> float:
+	return atan2(p.x, p.z)
+
+
+## Adds a hole at helmet-local point p (and its mirror twin across the centre).
+func add_hole(p: Vector3, shape: int, w: float, h: float, mirror: bool) -> void:
+	_group += 1
+	_add_pair(angle_of(p), p.y, shape, w, h, mirror)
+	_push_holes()
+
+
+## Adds a set of holes as one undo step: entries are [a, y, shape, w, h].
+func add_hole_set(entries: Array, mirror: bool) -> void:
+	_group += 1
+	for e in entries:
+		_add_pair(e[0], e[1], e[2], e[3], e[4], mirror)
+	_push_holes()
+
+
+func _add_pair(a: float, y: float, shape: int, w: float, h: float, mirror: bool) -> void:
+	_append_hole(a, y, shape, w, h)
+	if mirror and absf(a) * RX > w * 0.55:
+		_append_hole(-a, y, shape, w, h)
+
+
+func _append_hole(a: float, y: float, shape: int, w: float, h: float) -> void:
+	if holes.size() >= MAX_HOLES:
+		return
+	holes.append({"a": a, "y": y, "shape": shape, "w": w, "h": h, "group": _group})
+
+
+## Removes the hole (and its mirror twin) under helmet-local point p.
+func remove_hole_at(p: Vector3) -> bool:
+	var a := angle_of(p)
+	for i in range(holes.size() - 1, -1, -1):
+		var ho: Dictionary = holes[i]
+		var sp: Vector3 = surface_at(ho["a"], ho["y"])[0]
+		var reach := maxf(float(ho["w"]), float(ho["h"])) * 0.5 + 0.004
+		if sp.distance_to(p) < reach:
+			var grp: int = ho["group"]
+			holes = holes.filter(func(x): return x["group"] != grp)
+			_push_holes()
+			return true
 	return false
+
+
+func undo_hole() -> void:
+	if holes.is_empty():
+		return
+	var grp: int = holes[-1]["group"]
+	holes = holes.filter(func(x): return x["group"] != grp)
+	_push_holes()
+
+
+func clear_holes() -> void:
+	holes.clear()
+	_push_holes()
+
+
+func _hole_uniforms(a: float, y: float, shape: int, w: float, h: float) -> Array:
+	var sn := surface_at(a, y)
+	var p: Vector3 = sn[0]
+	var n: Vector3 = sn[1]
+	return [Vector4(p.x, p.y, p.z, shape), Vector4(n.x, n.y, n.z, 0.0), Vector4(w, h, 0.0, 0.0)]
+
+
+func _push_holes() -> void:
+	if _mat == null:
+		return
+	var pos := []
+	var nrm := []
+	var size := []
+	for ho in holes:
+		var y: float = ho["y"]
+		if y < bottom_y() - 0.004 or y > top_y():
+			continue  # not on the shell at the current stretch
+		var u := _hole_uniforms(ho["a"], y, ho["shape"], ho["w"], ho["h"])
+		pos.append(u[0])
+		nrm.append(u[1])
+		size.append(u[2])
+	var count := pos.size()
+	while pos.size() < MAX_HOLES:
+		pos.append(Vector4.ZERO)
+		nrm.append(Vector4(0, 1, 0, 0))
+		size.append(Vector4.ZERO)
+	_mat.set_shader_parameter("hole_count", count)
+	_mat.set_shader_parameter("hole_pos", pos)
+	_mat.set_shader_parameter("hole_nrm", nrm)
+	_mat.set_shader_parameter("hole_size", size)
+
+
+## Outline where the next hole would go (p = null hides it).
+func set_preview(p, shape: int, w: float, h: float) -> void:
+	if _mat == null:
+		return
+	if p == null:
+		_mat.set_shader_parameter("preview_on", false)
+		return
+	var u := _hole_uniforms(angle_of(p), p.y, shape, w, h)
+	_mat.set_shader_parameter("preview_on", true)
+	_mat.set_shader_parameter("preview_pos", u[0])
+	_mat.set_shader_parameter("preview_nrm", u[1])
+	_mat.set_shader_parameter("preview_size", u[2])
 
 
 # --------------------------------------------------------------------------
@@ -195,6 +349,7 @@ func rebuild() -> void:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
 	_mi.mesh = mesh
+	_push_holes()
 
 
 func _add_surface(pts: PackedVector3Array, rows: int, verts: PackedVector3Array,

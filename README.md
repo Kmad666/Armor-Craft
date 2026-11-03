@@ -10,6 +10,14 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Proportions](docs/proportions.png)
 
+## v0.9 – add holes
+
+Punch real holes through the spangenhelm. In the Helmet tab press **Add Holes**, pick a shape (**Round**, **Slot**, **Cross**), set its size, and click the helmet: a gold outline previews the hole under the cursor, a click cuts it, and clicking an existing hole removes it. **Mirror** places a matching hole on the other side. **Eye Slits** and **Breaths** add a ready-made set (stretching the helmet over the face if needed); **Undo Hole** and **Clear Holes** do what they say.
+
+Holes are pinned to the surface by angle and height, so they ride along when you stretch or skew the helmet, sleep when the helmet is shortened past them, and come back when it's stretched again. They're cut per pixel in the metal shader (up to 64 per helmet), shadows included.
+
+![Holes](docs/holes.png)
+
 ## v0.8 – stretch & skew
 
 Click the spangenhelm to select it (it glows) and two handles appear:
