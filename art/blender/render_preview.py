@@ -52,7 +52,7 @@ def light(name, loc, energy, size):
     o.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
 
-if views == "body":
+if views in ("body", "head"):
     light("Key", (-1.8, -2.4, 2.6), 380, 1.6)
     light("Rim", (2.1, 1.8, 2.2), 260, 1.6)
     light("Fill", (2.4, -1.8, 0.8), 60, 2.5)
@@ -83,6 +83,11 @@ if views == "body":
         shoot(name, az, el, dist=4.6, target=(0, 0, 0.9))
     cam_data.lens = 85
     shoot("body_hand", -60, 0, dist=1.0, target=(0.27, -0.02, 0.86))
+
+if views == "head":
+    cam_data.lens = 85
+    for name, az, el in (("head_front", 0, 0), ("head_side", 90, 0), ("head_three_quarter", 35, 5), ("head_like_ref", 70, 28)):
+        shoot(name, az, el, dist=1.05, target=(0, -0.01, 1.66))
 
 pivot = bpy.data.objects.get("VisorPivot")
 if views == "quick":

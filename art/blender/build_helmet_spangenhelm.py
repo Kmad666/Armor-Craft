@@ -17,10 +17,10 @@ import bmesh
 import bpy
 from mathutils import Matrix
 
-RIM_Z = 0.02        # rim height above eye level (brow)
-RADIUS_X = 0.088    # half-width  (side to side)
-RADIUS_Y = 0.106    # half-depth  (front to back)
-RADIUS_Z = 0.115    # dome height
+RIM_Z = 0.028       # rim height above eye level (just above the brow ridge)
+RADIUS_X = 0.091    # half-width  (side to side)
+RADIUS_Y = 0.109    # half-depth  (front to back)
+RADIUS_Z = 0.112    # dome height
 THICK = 0.002       # 2 mm plate
 
 

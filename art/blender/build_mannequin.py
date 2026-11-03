@@ -300,25 +300,13 @@ def build(wood, dark):
              cap0=0.3, cap1=0.55, sq=2.2), pelvis_j)
 
     # ---- Neck and head ------------------------------------------------------
+    # Thick neck leaning slightly forward, rising into the back of the jaw.
     nr = girth_r(m["neck_girth"])
-    add(loft("NeckPost", Vector((0, 0.008, m["neck_base_height"] - 0.03)), Vector((0, 0.002, head_pivot + 0.03)),
-             lambda t: (nr * lerp(1.06, 0.94, t), nr * lerp(1.1, 0.98, t), 0.0, 0.0), wood, na=32, nt=8,
+    add(loft("NeckPost", Vector((0, 0.024, m["neck_base_height"] - 0.035)), Vector((0, 0.004, head_pivot + 0.035)),
+             lambda t: (nr * lerp(1.12, 0.98, t), nr * lerp(1.12, 1.02, t), 0.0, 0.0), wood, na=32, nt=8,
              cap0=0.4, cap1=0.4), neck_j)
-    add(ball("NeckBall", Vector((0, 0.004, head_pivot)), nr * 1.02, dark, (1, 1.05, 0.8)), head_j)
-
-    hwid, hdep = m["head_width"] / 2, m["head_depth"] / 2
-    chin, crown = m["chin_height"], m["stature"]
-
-    def head_prof(t):
-        z = lerp(chin, crown, t)
-        keys_z = [chin, chin + 0.04, m["eye_height"] - 0.02, m["eye_height"] + 0.03, crown - 0.062]
-        rs = interp(z, keys_z, [0.042, hwid * 0.8, hwid * 0.97, hwid, hwid * 0.9])
-        rf = interp(z, keys_z, [0.045, hdep * 0.82, hdep * 0.97, hdep, hdep * 0.9])
-        of = interp(z, keys_z, [0.045, 0.02, 0.004, 0.0, -0.006])
-        return rs, rf, 0.0, of
-
-    add(loft("HeadBlock", Vector((0, 0.004, chin)), Vector((0, 0.004, crown - 0.062)), head_prof, wood, na=48, nt=30,
-             cap0=0.5, cap1=0.062 / (hwid * 0.9)), head_j)
+    add(ball("NeckBall", Vector((0, 0.008, head_pivot)), nr * 0.98, dark, (1, 1.05, 0.75)), head_j)
+    add(build_head(wood), head_j)
 
     # ---- Arms ---------------------------------------------------------------
     for sx, tag in ((1, "L"), (-1, "R")):
@@ -397,6 +385,117 @@ def interp(z, zs, vs):
             return ((2 * t3 - 3 * t2 + 1) * vs[i] + (t3 - 2 * t2 + t) * h * tang[i]
                     + (-2 * t3 + 3 * t2) * vs[i + 1] + (t3 - t2) * h * tang[i + 1])
     return vs[-1]
+
+
+# --------------------------------------------------------------------------
+# Head: a carved form made from smoothly blended shapes (signed distance
+# field), meshed by casting rays out from the middle of the head.
+# Head-local axes: x = the figure's left, f = forward, z = up, origin at
+# eye level. Sizes are for a 15.2 x 19.6 x 22.5 cm head and are scaled
+# from measurements.json.
+# --------------------------------------------------------------------------
+def _sd_ellipsoid(p, c, r):
+    import numpy as np
+    q = (p - c) / r
+    k0 = np.linalg.norm(q, axis=1)
+    k1 = np.linalg.norm((p - c) / (r * r), axis=1)
+    return k0 * (k0 - 1.0) / np.maximum(k1, 1e-9)
+
+
+def _sd_capsule(p, a, b, r):
+    import numpy as np
+    pa, ba = p - a, b - a
+    h = np.clip((pa @ ba) / (ba @ ba), 0.0, 1.0)
+    rr = r[0] + (r[1] - r[0]) * h if isinstance(r, tuple) else r
+    return np.linalg.norm(pa - np.outer(h, ba), axis=1) - rr
+
+
+def _smin(a, b, k):
+    import numpy as np
+    h = np.clip(0.5 + 0.5 * (b - a) / k, 0.0, 1.0)
+    return b + (a - b) * h - k * h * (1.0 - h)
+
+
+def _ssub(a, b, k):
+    return -_smin(-a, b, k)
+
+
+def head_sdf(p):
+    """p: (N, 3) array in head-local (x, f, z). Negative inside."""
+    import numpy as np
+    A = np.array
+    d = _sd_ellipsoid(p, A([0, -0.006, 0.022]), A([0.076, 0.096, 0.097]))          # cranium
+    face = _sd_ellipsoid(p, A([0, 0.03, -0.028]), A([0.06, 0.062, 0.072]))          # face mass
+    d = _smin(d, face, 0.03)
+    jaw = _sd_ellipsoid(p, A([0, 0.026, -0.07]), A([0.056, 0.068, 0.043]))          # lower jaw
+    d = _smin(d, jaw, 0.02)
+    for sx in (-1, 1):
+        d = _smin(d, _sd_ellipsoid(p, A([sx * 0.05, -0.016, -0.066]), A([0.016, 0.022, 0.022])), 0.014)  # jaw angle
+        d = _smin(d, _sd_capsule(p, A([sx * 0.05, -0.012, -0.074]), A([sx * 0.024, 0.07, -0.096]), 0.012), 0.014)  # jawline
+        d = _smin(d, _sd_ellipsoid(p, A([sx * 0.046, 0.058, -0.008]), A([0.022, 0.017, 0.016])), 0.018)   # cheekbone
+    d = _smin(d, _sd_ellipsoid(p, A([0, 0.079, -0.094]), A([0.027, 0.021, 0.021])), 0.018)               # chin
+    d = _smin(d, _sd_ellipsoid(p, A([0, 0.046, 0.064]), A([0.054, 0.04, 0.046])), 0.022)                # forehead
+    d = _smin(d, _sd_capsule(p, A([-0.042, 0.08, 0.024]), A([0.042, 0.08, 0.024]), 0.012), 0.018)      # brow ridge
+    # nose: bridge to tip, then the wings at the base
+    d = _smin(d, _sd_capsule(p, A([0, 0.091, 0.012]), A([0, 0.113, -0.032]), (0.0075, 0.011)), 0.012)
+    d = _smin(d, _sd_ellipsoid(p, A([0, 0.098, -0.036]), A([0.02, 0.012, 0.01])), 0.01)
+    for sx in (-1, 1):
+        d = _ssub(d, _sd_ellipsoid(p, A([sx * 0.034, 0.104, 0.002]), A([0.022, 0.02, 0.016])), 0.012)   # eye socket
+        d = _smin(d, _sd_ellipsoid(p, A([sx * 0.034, 0.08, 0.0]), A([0.015, 0.012, 0.009])), 0.006)      # closed eyelid
+    d = _ssub(d, _sd_capsule(p, A([-0.021, 0.098, -0.062]), A([0.021, 0.098, -0.062]), 0.0028), 0.004)  # mouth line
+    d = _smin(d, _sd_ellipsoid(p, A([0, 0.086, -0.069]), A([0.018, 0.007, 0.006])), 0.006)              # lower lip
+    for sx in (-1, 1):
+        ear = _sd_ellipsoid(p, A([sx * 0.074, -0.014, -0.012]), A([0.013, 0.022, 0.031]))
+        ear = _ssub(ear, _sd_ellipsoid(p, A([sx * 0.088, -0.01, -0.016]), A([0.009, 0.012, 0.016])), 0.004)  # bowl of the ear
+        d = _smin(d, ear, 0.006)
+    return d
+
+
+def build_head(wood):
+    import numpy as np
+    m = M
+    sx_ = m["head_width"] / 0.152
+    sf_ = m["head_depth"] / 0.196
+    sz_ = (m["stature"] - m["chin_height"]) / 0.225
+    scale = np.array([sx_, sf_, sz_])
+    origin = Vector((0.0, 0.0, m["eye_height"]))
+    centre = np.array([0.0, 0.0, -0.005])
+
+    n_pol, n_az = 72, 112
+    pol = np.linspace(0.0, np.pi, n_pol + 1)[1:-1]
+    az = np.linspace(0.0, 2 * np.pi, n_az, endpoint=False)
+    P, Z = np.meshgrid(pol, az, indexing="ij")
+    dirs = np.stack([np.sin(P) * np.sin(Z), np.sin(P) * np.cos(Z), np.cos(P)], axis=-1).reshape(-1, 3)
+    dirs = np.vstack([dirs, [[0, 0, 1.0], [0, 0, -1.0]]])
+
+    def sdf_world(t):
+        pts = centre + dirs * t[:, None]
+        return head_sdf(pts)
+
+    lo = np.zeros(len(dirs))
+    hi = np.full(len(dirs), 0.2)
+    for _ in range(32):
+        mid = (lo + hi) * 0.5
+        inside = sdf_world(mid) < 0.0
+        lo = np.where(inside, mid, lo)
+        hi = np.where(inside, hi, mid)
+    pts = (centre + dirs * lo[:, None]) * scale
+
+    # local (x, f, z) -> Blender (x, -y, z), then place at eye level
+    verts = [Vector((p[0], -p[1], p[2])) + origin for p in pts]
+    faces = []
+    for i in range(n_pol - 2):
+        for j in range(n_az):
+            a = i * n_az + j
+            b = i * n_az + (j + 1) % n_az
+            faces.append((a, b, b + n_az, a + n_az))
+    top = len(verts) - 2
+    bot = len(verts) - 1
+    last = (n_pol - 2) * n_az
+    for j in range(n_az):
+        faces.append((top, (j + 1) % n_az, j))
+        faces.append((bot, last + j, last + (j + 1) % n_az))
+    return mesh_obj("HeadBlock", verts, faces, wood, origin + Vector((0, 0, -0.005)))
 
 
 def build_hand(tag, sx, wr, down, wood):

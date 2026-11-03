@@ -10,6 +10,15 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Proportions](docs/proportions.png)
 
+## v0.7 – carved head
+
+The mannequin's head is reshaped from a reference outline: fuller rounded skull with the back of the head bulging behind the neck, upright forehead, brow ridge, eye sockets with closed lids, nose, lips, cheekbones, a defined jaw and chin, and ears. The neck is thicker and leans slightly forward into the back of the jaw.
+
+It's carved from blended shapes (a signed-distance sculpt in `build_mannequin.py` → `head_sdf`), scaled by `head_width`, `head_depth`, and chin-to-crown height from `measurements.json`. The spangenhelm was refitted to clear the new head by at least 3 mm.
+
+![Head vs reference](docs/head_reference.png)
+![Head in game](docs/head_in_game.png)
+
 ## v0.6 – spangenhelm (simple shapes first)
 
 Helmets now start from simple shapes and get detail added step by step. First up, the **spangenhelm**: a plain half-sphere shell, 2 mm thick, in the hammered-steel finish, fitted to the mannequin's head with the rim on the brow. It's the default helmet; the hounskull bascinet and the procedural designer are still in the Helmet dropdown.

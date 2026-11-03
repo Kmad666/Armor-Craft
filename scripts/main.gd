@@ -350,7 +350,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "v0.6  -  drag to orbit, scroll to zoom"
+	hint.text = "v0.7  -  drag to orbit, scroll to zoom"
 	hint.add_theme_color_override("font_color", Color(0.85, 0.83, 0.8))
 	hint.position = Vector2(24, 56)
 	layer.add_child(hint)
