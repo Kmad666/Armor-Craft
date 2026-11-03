@@ -6,7 +6,14 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 ![Helmet designer](docs/helmet.png)
 ![Back](docs/back.png)
 
-## v0.2 – what's in
+**Proportions vs. reference** (left of each pair: reference, right: Armor Craft)
+
+![Proportions](docs/proportions.png)
+
+## v0.3 – what's in
+
+Body proportions are measured off the reference (about seven helmets tall, 1.86 m to the bascinet apex) and live as named landmarks at the top of `scripts/suit_builder.gd`: shoulder, elbow, wrist, waist, hem, knee, plus arm and leg centre-lines. Change one number and every piece follows.
+
 
 **The harness** (modelled on an Italian-style harness, c. 1400–1420), every piece procedural:
 - Hounskull bascinet: pointed apex, pig-faced visor with eye slit and breaths, rosette pivots, aventail vervelles

@@ -17,19 +17,19 @@ const FINISHES := [
 ]
 
 const HELMET_PRESETS := {
-	"Hounskull Bascinet": {"width": 0.13, "depth": 0.143, "height": 0.31, "dome": 0.62, "taper": 0.97, "flare": 0.0,
-		"snout": 0.17, "apex": 0.75, "visor": true, "breaths": true,
+	"Hounskull Bascinet": {"width": 0.122, "depth": 0.136, "height": 0.268, "dome": 0.62, "taper": 0.97, "flare": 0.0,
+		"snout": 0.15, "apex": 0.75, "visor": true, "breaths": true,
 		"slit_style": 1, "slit_count": 1, "slit_w": 0.62, "slit_thick": 0.024, "slit_y": 0.6, "plume": false, "rim": true},
-	"Great Helm": {"width": 0.135, "depth": 0.15, "height": 0.29, "dome": 0.22, "taper": 0.95, "flare": 0.0, "snout": 0.0,
+	"Great Helm": {"width": 0.128, "depth": 0.142, "height": 0.27, "dome": 0.22, "taper": 0.95, "flare": 0.0, "snout": 0.0,
 		"apex": 0.0, "visor": false, "breaths": false,
 		"slit_style": 0, "slit_count": 2, "slit_w": 0.55, "slit_thick": 0.024, "slit_y": 0.62, "plume": false, "rim": true},
-	"Barbute": {"width": 0.13, "depth": 0.145, "height": 0.29, "dome": 0.6, "taper": 1.0, "flare": 0.0, "snout": 0.0,
+	"Barbute": {"width": 0.122, "depth": 0.137, "height": 0.27, "dome": 0.6, "taper": 1.0, "flare": 0.0, "snout": 0.0,
 		"apex": 0.15, "visor": false, "breaths": false,
 		"slit_style": 2, "slit_count": 1, "slit_w": 0.42, "slit_thick": 0.035, "slit_y": 0.6, "plume": false, "rim": true},
-	"Sallet": {"width": 0.13, "depth": 0.15, "height": 0.27, "dome": 0.55, "taper": 1.0, "flare": 0.35, "snout": 0.0,
+	"Sallet": {"width": 0.122, "depth": 0.142, "height": 0.25, "dome": 0.55, "taper": 1.0, "flare": 0.35, "snout": 0.0,
 		"apex": 0.0, "visor": false, "breaths": false,
 		"slit_style": 0, "slit_count": 1, "slit_w": 0.75, "slit_thick": 0.02, "slit_y": 0.62, "plume": true, "rim": true},
-	"Grilled Bascinet": {"width": 0.13, "depth": 0.145, "height": 0.3, "dome": 0.5, "taper": 0.97, "flare": 0.0, "snout": 0.04,
+	"Grilled Bascinet": {"width": 0.122, "depth": 0.137, "height": 0.275, "dome": 0.5, "taper": 0.97, "flare": 0.0, "snout": 0.04,
 		"apex": 0.45, "visor": false, "breaths": false,
 		"slit_style": 3, "slit_count": 7, "slit_w": 0.6, "slit_thick": 0.02, "slit_y": 0.64, "plume": true, "rim": true},
 }
@@ -53,13 +53,13 @@ const VISOR_SLIDERS := [
 ]
 const HELMET_TOGGLES := [["Pig-Face Visor", "visor"], ["Breaths", "breaths"], ["Plume", "plume"], ["Rolled Rim", "rim"]]
 
-const HELMET_Y := 1.535
+const HELMET_Y := 1.6
 
 var camera: Camera3D
 var yaw := 0.55
 var pitch := 0.1
 var distance := 3.3
-var focus := Vector3(0, 0.95, 0)
+var focus := Vector3(0, 1.0, 0)
 var target_focus := focus
 var target_distance := distance
 var dragging := false
@@ -242,37 +242,47 @@ func _body(mesh: Mesh, mat: Material, pos: Vector3, scl := Vector3.ONE) -> MeshI
 	return mi
 
 
+func _capsule_between(a: Vector3, b: Vector3, r: float, mat: Material) -> void:
+	var cm := CapsuleMesh.new()
+	cm.radius = r
+	cm.height = a.distance_to(b) + r * 2.0
+	var mi := MeshInstance3D.new()
+	mi.mesh = cm
+	mi.material_override = mat
+	mi.transform = Transform3D(Basis(Quaternion(Vector3.UP, (a - b).normalized())), (a + b) * 0.5)
+	add_child(mi)
+
+
 func _build_mannequin() -> void:
 	var head := SphereMesh.new()
-	head.radius = 0.1
-	head.height = 0.23
-	head_node = _body(head, body_mat, Vector3(0, 1.68, 0.005), Vector3(0.95, 1.0, 1.05))
+	head.radius = 0.095
+	head.height = 0.22
+	head_node = _body(head, body_mat, Vector3(0, 1.735, 0.005), Vector3(0.95, 1.0, 1.05))
 	var neck := CylinderMesh.new()
-	neck.top_radius = 0.05
-	neck.bottom_radius = 0.058
-	neck.height = 0.14
-	_body(neck, body_mat, Vector3(0, 1.53, 0))
+	neck.top_radius = 0.048
+	neck.bottom_radius = 0.056
+	neck.height = 0.13
+	_body(neck, body_mat, Vector3(0, 1.6, 0))
 	var torso := CapsuleMesh.new()
-	torso.radius = 0.15
-	torso.height = 0.56
-	_body(torso, body_mat, Vector3(0, 1.24, 0), Vector3(1.0, 1.0, 0.75))
+	torso.radius = 0.13
+	torso.height = 0.5
+	_body(torso, body_mat, Vector3(0, 1.33, 0), Vector3(1.0, 1.0, 0.72))
 	var hips := CapsuleMesh.new()
-	hips.radius = 0.14
+	hips.radius = 0.13
 	hips.height = 0.3
-	_body(hips, hose_mat, Vector3(0, 0.93, 0), Vector3(1.0, 1.0, 0.75))
+	_body(hips, hose_mat, Vector3(0, 1.0, 0), Vector3(1.0, 1.0, 0.75))
+	var SB := SuitBuilder
 	for sx in [-1.0, 1.0]:
-		var arm := CapsuleMesh.new()
-		arm.radius = 0.04
-		arm.height = 0.55
-		_body(arm, body_mat, Vector3(0.275 * sx, 1.14, 0))
-		var thigh := CapsuleMesh.new()
-		thigh.radius = 0.062
-		thigh.height = 0.5
-		_body(thigh, hose_mat, Vector3(0.105 * sx, 0.72, 0))
-		var shin := CapsuleMesh.new()
-		shin.radius = 0.034
-		shin.height = 0.46
-		_body(shin, hose_mat, Vector3(0.105 * sx, 0.27, -0.004))
+		var sh: Vector3 = SB.arm_center(sx, SB.SHOULDER_Y - 0.05)
+		var el: Vector3 = SB.arm_center(sx, SB.ELBOW_Y)
+		var wr: Vector3 = SB.arm_center(sx, SB.WRIST_Y)
+		_capsule_between(sh, el, 0.042, body_mat)
+		_capsule_between(el, wr, 0.037, body_mat)
+		var hip: Vector3 = SB.leg_center(sx, SB.HIP_Y)
+		var knee: Vector3 = SB.leg_center(sx, SB.KNEE_Y)
+		var ankle: Vector3 = SB.leg_center(sx, 0.09)
+		_capsule_between(hip, knee, 0.058, hose_mat)
+		_capsule_between(knee, ankle, 0.033, hose_mat)
 
 
 func _rebuild_helmet() -> void:
@@ -336,7 +346,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "v0.2  -  drag to orbit, scroll to zoom"
+	hint.text = "v0.3  -  drag to orbit, scroll to zoom"
 	hint.add_theme_color_override("font_color", Color(0.85, 0.83, 0.8))
 	hint.position = Vector2(24, 56)
 	layer.add_child(hint)
@@ -548,10 +558,10 @@ func _on_preset(i: int) -> void:
 
 func _on_tab_changed(tab: int) -> void:
 	if tab == 1:
-		target_focus = Vector3(0, 1.68, 0)
-		target_distance = 1.15
+		target_focus = Vector3(0, 1.74, 0)
+		target_distance = 1.05
 	else:
-		target_focus = Vector3(0, 0.95, 0)
+		target_focus = Vector3(0, 1.0, 0)
 		target_distance = 3.3
 
 
