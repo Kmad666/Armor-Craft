@@ -17,9 +17,12 @@ Rebuilt from a new reference: a plain breast and back fitted to the wooden manne
 - **Mid section, breastplate:** plain plate with a sharp centre crease, wide shallow neckline, deep armholes with riveted gusset plates, lower edge pointed at the centre front; a clasp on the right side and hinges on the left.
 - **Mid section, backplate:** V-shaped yoke line across the shoulders, spine ridge, armhole gussets cut toward the spine, higher shoulders.
 - **Bottom section:** the fauld, a flared lame all the way round below the plates.
-- **Belt** on the seam between the two, with a side buckle and loose tail; leather shoulder straps join breast and back.
+- **Shoulder plates:** steel straps rise from the top of the breastplate and arch over each shoulder to the backplate, riveted at both ends with rolled edges, so front and back are one connected shell. They bend around the neck and are tested to clear the wooden body (7 mm at the closest point).
+- **Belt** on the seam between the mid and bottom sections, with a side buckle and loose tail.
 
-The sides run straight from chest to hip (no waist nip), but the plates always clear the body: their shape is a smooth maximum of a barrel profile and the mannequin's measurements plus padding. Cuirass tab: show/hide each piece, armhole gussets on/off, 0 to 4 fauld lames. Source: `scripts/pieces/cuirass.gd`.
+![Shoulder plates](docs/cuirass_shoulders.png)
+
+The sides run straight from chest to hip (no waist nip), but the plates always clear the body: their shape is a smooth maximum of a barrel profile and the mannequin's measurements plus padding. Cuirass tab: show/hide each piece (including the shoulder plates), armhole gussets on/off, 0 to 4 fauld lames. Source: `scripts/pieces/cuirass.gd`.
 
 ![Cuirass](docs/cuirass.png)
 

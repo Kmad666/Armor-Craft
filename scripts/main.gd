@@ -534,7 +534,7 @@ func _build_cuirass_tab(box: VBoxContainer) -> void:
 	var grid := GridContainer.new()
 	grid.columns = 2
 	box.add_child(grid)
-	for pair in [["Breastplate", "Breastplate"], ["Backplate", "Backplate"], ["Fauld", "Fauld"], ["Belt & Straps", "Belt"]]:
+	for pair in [["Breastplate", "Breastplate"], ["Backplate", "Backplate"], ["Shoulder Plates", "Shoulders"], ["Fauld", "Fauld"], ["Belt", "Belt"]]:
 		var key: String = pair[1]
 		var cb := CheckBox.new()
 		cb.text = pair[0]

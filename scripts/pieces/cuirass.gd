@@ -44,7 +44,7 @@ func setup(mats: Dictionary, measurements: Dictionary, chest_joint: Node3D, pelv
 	leather = mats["leather"]
 	brass = mats["brass"]
 	m = measurements
-	for n in ["Breastplate", "Backplate", "Belt"]:
+	for n in ["Breastplate", "Backplate", "Shoulders", "Belt"]:
 		pieces[n] = _piece(n, chest_joint)
 	pieces["Fauld"] = _piece("Fauld", pelvis_joint)
 	rebuild_all()
@@ -62,6 +62,7 @@ func _piece(piece_name: String, joint: Node3D) -> Node3D:
 func rebuild_all() -> void:
 	_build_breastplate()
 	_build_backplate()
+	_build_shoulders()
 	_build_fauld()
 	_build_belt()
 
@@ -76,6 +77,7 @@ func set_gussets(on: bool) -> void:
 	gussets = on
 	_build_breastplate()
 	_build_backplate()
+	_build_shoulders()
 
 
 # ==========================================================================
@@ -364,6 +366,85 @@ func _build_backplate() -> void:
 
 
 # ==========================================================================
+# Shoulder plates: steel straps joining breast and back over the shoulders
+# ==========================================================================
+
+const SH_FRONT := [0.34, 0.64]   # span on the breastplate's shoulder (angle from front)
+const SH_BACK := [0.36, 0.68]    # span on the backplate's shoulder (angle from back)
+const SH_OVERLAP := 0.07         # how far down each plate the strap starts (fraction)
+const SH_PUSH := 0.0075          # sits this far outside the plates
+const NECK_CLEAR := 0.012
+
+
+## Neck column of the mannequin at height y: (centre z, radius).
+func _neck(y: float) -> Vector2:
+	var nr: float = m["neck_girth"] / TAU
+	var y0: float = m["neck_base_height"] - 0.035
+	var y1: float = m["chin_height"] + 0.055
+	var k := clampf((y - y0) / (y1 - y0), 0.0, 1.0)
+	return Vector2(lerpf(-0.024, -0.004, k), nr * lerpf(1.12, 1.02, k))
+
+
+func _bezier(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) -> Vector3:
+	var u := 1.0 - t
+	return p0 * (u * u * u) + p1 * (3.0 * u * u * t) + p2 * (3.0 * u * t * t) + p3 * (t * t * t)
+
+
+## Point on the strap. side: +1 = figure's left (+X). u: 0 neck side .. 1 arm side.
+## t: 0 on the breastplate .. 1 on the backplate.
+func shoulder_point(side: float, u: float, t: float) -> Vector3:
+	var p := _strap_path(side, u, t)
+	# keep the whole strap clear of the neck: shift it outward as one piece,
+	# judged by its neck-side edge so it keeps its width
+	var inner := _strap_path(side, 0.0, t)
+	var nk := _neck(inner.y)
+	var d := Vector2(inner.x, inner.z - nk.x)
+	var need := nk.y + NECK_CLEAR
+	var have := d.length()
+	var grow := _smax(have, need, 0.012) - have
+	if grow > 0.0 and have > 1e-5:
+		var dir := d / have
+		p += Vector3(dir.x, 0.0, dir.y) * grow
+	return p
+
+
+func _strap_path(side: float, u: float, t: float) -> Vector3:
+	var af := side * lerpf(SH_FRONT[0], SH_FRONT[1], u)
+	var ab := -side * lerpf(SH_BACK[0], SH_BACK[1], u)
+	var t0 := 1.0 - SH_OVERLAP
+	var f0 := _breast_shape(af, t0)
+	var f1 := _breast_shape(af, 1.0)
+	var b0 := _back_shape(ab, t0)
+	var b1 := _back_shape(ab, 1.0)
+	var nf := ring_normal(af, plate(f0.y))
+	var nb := ring_normal(PI + ab, plate(b0.y))
+	var p0 := f0 + nf * SH_PUSH
+	var p3 := b0 + nb * SH_PUSH
+	var span := p0.distance_to(p3)
+	var p1 := p0 + (f1 - f0).normalized() * span * 0.3
+	var p2 := p3 + (b1 - b0).normalized() * span * 0.3
+	return _bezier(p0, p1, p2, p3, t)
+
+
+func _build_shoulders() -> void:
+	var root: Node3D = pieces["Shoulders"]
+	_clear(root)
+	_rivets = []
+	for side in [-1.0, 1.0]:
+		var shape := func(u: float, t: float) -> Vector3: return shoulder_point(side, u, t)
+		var centre := Vector3(side * 0.05, 1.38, -0.01)
+		_add_mesh(root, K.surface(shape, 0.0, 1.0, 10, 0.0, 1.0, 48, centre), metal)
+		_edge_a(root, shape, 0.0, 0.0, 1.0, 48, centre, 0.003)
+		_edge_a(root, shape, 1.0, 0.0, 1.0, 48, centre, 0.003)
+		_edge(root, shape, 0.0, 1.0, 0.0, 10, centre, 0.0026)
+		_edge(root, shape, 0.0, 1.0, 1.0, 10, centre, 0.0026)
+		for t in [0.05, 0.95]:
+			_rivet(shape, 0.3, t, centre, 0.0065)
+			_rivet(shape, 0.7, t, centre, 0.0065)
+	_flush_rivets(root)
+
+
+# ==========================================================================
 # Fauld (bottom section): flared lame(s) all the way round
 # ==========================================================================
 
@@ -427,17 +508,6 @@ func _build_belt() -> void:
 		var y := bottom(a) - 0.002 - 0.004 * t + lerpf(-0.011, 0.011, t)
 		return ring_point(a, y, plate(y, off + 0.0035))
 	_add_mesh(root, K.surface(tail, ab - 0.02, ab + 0.32, 10, 0.0, 1.0, 2, Vector3(0, 1.04, 0)), leather)
-
-	# shoulder straps from the breastplate's shoulder points over to the back
-	for s in [-1.0, 1.0]:
-		var f := _breast_shape(s * 0.5, 0.97)
-		var b := _back_shape(s * 0.5, 0.97)
-		var over := Vector3((f.x + b.x) * 0.5 * 1.04, maxf(f.y, b.y) + 0.024, (f.z + b.z) * 0.5)
-		var pts := PackedVector3Array()
-		for i in 13:
-			var t := i / 12.0
-			pts.append(f.lerp(over, t).lerp(over.lerp(b, t), t))
-		_add_mesh(root, _ribbon(pts, 0.022, 0.003), leather)
 
 
 ## Flat strap following a polyline.
