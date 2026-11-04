@@ -10,21 +10,20 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Proportions](docs/proportions.png)
 
-## v0.11 – cuirass (munitions breast and back)
+## v0.12 – cuirass traced from a reference sheet
 
-Rebuilt from a new reference: a plain breast and back fitted to the wooden mannequin, split into two sections.
+The cuirass is traced from a front / side / back reference: the outline in each view is measured row by row and turned into width and depth profiles at every height, scaled onto the wooden mannequin.
 
-- **Mid section, breastplate:** plain plate with a sharp centre crease, wide shallow neckline, deep armholes with riveted gusset plates, lower edge pointed at the centre front; a clasp on the right side and hinges on the left.
-- **Mid section, backplate:** V-shaped yoke line across the shoulders, spine ridge, armhole gussets cut toward the spine, higher shoulders.
-- **Bottom section:** the fauld, a flared lame all the way round below the plates.
-- **Shoulder plates:** steel straps rise from the top of the breastplate and arch over each shoulder to the backplate, riveted at both ends with rolled edges, so front and back are one connected shell. They bend around the neck and are tested to clear the wooden body (7 mm at the closest point).
-- **Belt** on the seam between the mid and bottom sections, with a side buckle and loose tail.
+- **Mid section:** breastplate and backplate with a round chest, wide shallow neckline, open armholes and narrow shoulder tabs. They meet at a seam on each side.
+- **Bottom section:** the fauld, one band that flares out below the waist, with the lower edge dipping at the front.
+- **Leather:** straps riveted to the front and back tabs join them over each shoulder; a belt across the front sits on the division with a buckle and hanging tail; buckled straps cross each side seam on the plates and on the fauld.
+- Neck and armholes are cut along smooth curves (marching-triangle clipping on the shell grid) and every cut edge gets a rolled edge.
+- Where the mannequin is fuller than the reference wearer, the profiles are widened just enough to clear it and then smoothed. A test measures the gap from every piece to the wood (at least 5 mm).
 
-![Shoulder plates](docs/cuirass_shoulders.png)
+Cuirass tab: show or hide the breastplate, backplate, fauld, shoulder straps and belts. Source: `scripts/pieces/cuirass.gd` (traced tables at the top).
 
-The sides run straight from chest to hip (no waist nip), but the plates always clear the body: their shape is a smooth maximum of a barrel profile and the mannequin's measurements plus padding. Cuirass tab: show/hide each piece (including the shoulder plates), armhole gussets on/off, 0 to 4 fauld lames. Source: `scripts/pieces/cuirass.gd`.
-
-![Cuirass](docs/cuirass.png)
+![Reference vs cuirass](docs/cuirass.png)
+![On the mannequin](docs/cuirass_on_mannequin.png)
 
 ## v0.9 – add holes
 

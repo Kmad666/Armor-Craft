@@ -429,7 +429,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "v0.11  -  drag to orbit, scroll to zoom"
+	hint.text = "v0.12  -  drag to orbit, scroll to zoom"
 	hint.add_theme_color_override("font_color", Color(0.85, 0.83, 0.8))
 	hint.position = Vector2(24, 56)
 	layer.add_child(hint)
@@ -525,7 +525,7 @@ func _build_body_tab(box: VBoxContainer) -> void:
 func _build_cuirass_tab(box: VBoxContainer) -> void:
 	_header(box, "Cuirass")
 	var note := Label.new()
-	note.text = "Mid section: breastplate and backplate. Bottom section: the flared lame(s) of the fauld. The belt sits on the division."
+	note.text = "Mid section: breastplate and backplate. Bottom section: the flared fauld. The belt sits on the division; leather straps join front and back over the shoulders."
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	note.custom_minimum_size = Vector2(280, 0)
 	note.add_theme_color_override("font_color", Color(0.8, 0.78, 0.74))
@@ -534,7 +534,7 @@ func _build_cuirass_tab(box: VBoxContainer) -> void:
 	var grid := GridContainer.new()
 	grid.columns = 2
 	box.add_child(grid)
-	for pair in [["Breastplate", "Breastplate"], ["Backplate", "Backplate"], ["Shoulder Plates", "Shoulders"], ["Fauld", "Fauld"], ["Belt", "Belt"]]:
+	for pair in [["Breastplate", "Breastplate"], ["Backplate", "Backplate"], ["Fauld", "Fauld"], ["Shoulder Straps", "Shoulders"], ["Belts & Buckles", "Belt"]]:
 		var key: String = pair[1]
 		var cb := CheckBox.new()
 		cb.text = pair[0]
@@ -542,25 +542,6 @@ func _build_cuirass_tab(box: VBoxContainer) -> void:
 		cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		cb.toggled.connect(func(v: bool) -> void: (cuirass.pieces[key] as Node3D).visible = v)
 		grid.add_child(cb)
-	_header(box, "Details")
-	var gus := CheckBox.new()
-	gus.text = "Armhole gussets"
-	gus.button_pressed = true
-	gus.toggled.connect(func(v: bool) -> void: cuirass.set_gussets(v))
-	box.add_child(gus)
-	var lbl := Label.new()
-	lbl.text = "Fauld lames: %d" % cuirass.lames
-	box.add_child(lbl)
-	var sl := HSlider.new()
-	sl.min_value = 0
-	sl.max_value = 4
-	sl.step = 1
-	sl.value = cuirass.lames
-	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sl.value_changed.connect(func(v: float) -> void:
-		cuirass.set_lames(int(v))
-		lbl.text = "Fauld lames: %d" % int(v))
-	box.add_child(sl)
 
 
 func _build_suit_tab(box: VBoxContainer) -> void:
