@@ -46,7 +46,9 @@ const HEM_B := [[0.0029, 1.0197], [0.0127, 1.0197], [0.0225, 1.0197], [0.0323, 1
 
 const TOP := 1.5073
 const ARM_BOTTOM := 1.2995   # armholes close below this
-const SEAM_Y := 1.1351       # division between the mid and bottom sections
+const PLATE_BOTTOM := 1.150  # lower edge of the breast and back plates (rolled, above the belt)
+const FAULD_TOP := 1.152     # the fauld's top edge, tucked just under that roll
+const BELT_Y := 1.138        # belt centre line, on the fauld just below the plates
 const SEAM_Z := -0.0454       # side seam where breast and back plates meet
 const STRAP_Y := [1.2512, 1.0713]  # buckled side straps (plates, fauld)
 const N_FRONT := 2.0       # breastplate cross-section: round
@@ -499,30 +501,28 @@ func _build_plate(piece_name: String, side: int) -> void:
 	# the seam sits at the widest point of every cross-section (a = +-90 deg)
 	var lo := -PI * 0.5 if side > 0 else PI * 0.5 - BACK_TUCK
 	var hi := PI * 0.5 if side > 0 else PI * 1.5 + BACK_TUCK
-	var res: Array = _shell(SEAM_Y - 0.016, TOP, push, Callable(self, "_cut_mid"), side, lo, hi)
+	var res: Array = _shell(PLATE_BOTTOM, TOP, push, Callable(self, "_cut_mid"), side, lo, hi)
 	_add_mesh(root, res[0], metal)
 	edge_loops[piece_name] = [res[1], push]
-	# rolled edges everywhere except the hidden bottom row
-	var skip := func(_a: float, y: float) -> bool: return y < SEAM_Y - 0.01
+	# rolled edges all round, the bottom one showing above the belt
+	var skip := func(_a: float, _y: float) -> bool: return false
 	_rolled_edges(root, res[1], push, EDGE_R, skip)
 
 
 func _build_fauld() -> void:
 	var root: Node3D = pieces["Fauld"]
 	_clear(root)
-	var push := 0.002
-	var res: Array = _shell(1.012, SEAM_Y + 0.004, push, Callable(self, "_cut_fauld"), 0)
+	var push := 0.0
+	var res: Array = _shell(1.012, FAULD_TOP, push, Callable(self, "_cut_fauld"), 0)
 	_add_mesh(root, res[0], metal)
 	edge_loops["Fauld"] = [res[1], push]
-	var hem := func(_a: float, y: float) -> bool: return y > SEAM_Y
-	var top := func(_a: float, y: float) -> bool: return y < SEAM_Y
-	_rolled_edges(root, res[1], push, EDGE_R, hem)   # hem
-	_rolled_edges(root, res[1], push, 0.0022, top)   # top edge, under the belt
+	var hem := func(_a: float, y: float) -> bool: return y > FAULD_TOP - 0.01
+	_rolled_edges(root, res[1], push, EDGE_R, hem)   # hem; the top edge hides under the plates
 	# side seam lines on the flared band
 	for sx in [-1.0, 1.0]:
 		var pts := PackedVector3Array()
 		for i in 13:
-			var y := lerpf(bottom(PI * 0.5) + 0.008, SEAM_Y, i / 12.0)
+			var y := lerpf(bottom(PI * 0.5) + 0.008, PLATE_BOTTOM - 0.003, i / 12.0)
 			var a := seam_angle(sx, y)
 			pts.append(surface(a, y, push) + normal_at(a, y, push) * 0.0012)
 		_add_mesh(root, K.tube(pts, 0.0016, 5), metal)
@@ -607,27 +607,34 @@ func _build_belt() -> void:
 	var root: Node3D = pieces["Belt"]
 	_clear(root)
 	_rivets = []
-	var by := SEAM_Y + 0.002
-	var push := 0.006
-	# belt across the front, from seam to seam
+	var by := BELT_Y
+	var push := 0.0026
+	# belt across the front, from seam to seam (14 mm wide, as on the sheet)
 	var a_end := absf(seam_angle(1.0, by)) - 0.08
 	var band := func(a: float, t: float) -> Vector3:
-		return surface(a, by + lerpf(-0.008, 0.008, t), push)
+		return surface(a, by + lerpf(-0.007, 0.007, t), push)
 	_add_mesh(root, K.surface(band, -a_end, a_end, 80, 0.0, 1.0, 2, Vector3(0, by, 0)), leather)
 	for sx in [-1.0, 1.0]:
 		_rivet_at(sx * a_end * 0.97, by, push + 0.001, 0.0065)
 		_rivet_at(sx * (a_end - 0.06), by + 0.034, 0.0, 0.006)  # belt anchor on the plate
-	# buckle and hanging tail
-	var ab := 0.06
-	_buckle(root, ab, by, push + 0.002, 0.024, 0.02)
-	var tail := func(a: float, t: float) -> Vector3:
-		var y := lerpf(by - 0.006, bottom(0.0) + 0.012, t)
-		return surface(a, y, 0.002 + 0.0045)
-	_add_mesh(root, K.surface(tail, ab - 0.05, ab + 0.05, 4, 0.0, 1.0, 16, Vector3(0, 1.08, 0)), leather)
-	_rivet_at(ab, by - 0.016, 0.002 + 0.0055, 0.0055)
+	# square iron buckle just right of centre, the free end through it with a
+	# keeper and a pointed tip, and the strap hanging from it down the fauld
+	var bx := 0.005
+	_rect_buckle(root, bx, by, push + 0.0012, 0.026, 0.030)
+	var tongue_tip := 0.064
+	_add_mesh(root, _pointed_strip(Vector2(bx + 0.006, by), Vector2(tongue_tip, by), 0.013, 0.010, push + 0.0012), leather)
+	_add_mesh(root, _pointed_strip(Vector2(bx + 0.021, by), Vector2(bx + 0.028, by), 0.018, 0.0, push + 0.0024), leather)
+	var tail_top := by - 0.004
+	var tail_tip := 1.022
+	_add_mesh(root, _pointed_strip(Vector2(0.0, tail_top), Vector2(0.0, tail_tip), 0.016, 0.012, 0.0035), leather)
+	_rivets.append(_front_rivet(0.0, 1.039, 0.0042, 0.011))
+	# punched holes: one in the free end, one in the belt, two in the tail
+	var holes := [_front_rivet(0.043, by, push + 0.0021, 0.0032), _front_rivet(-0.092, by, push + 0.0009, 0.0032),
+		_front_rivet(0.0, 1.079, 0.0043, 0.0032), _front_rivet(0.0, 1.071, 0.0043, 0.0032)]
+	root.add_child(K.multimesh(holes, K.rivet_mesh(), _hole_mat()))
 	# buckled straps across each side seam: one on the plates, one on the fauld
 	for sx in [-1.0, 1.0]:
-		for spec in [[STRAP_Y[0], 0.0035], [STRAP_Y[1], 0.002 + 0.0035]]:
+		for spec in [[STRAP_Y[0], 0.0035], [STRAP_Y[1], 0.0035]]:
 			var y: float = spec[0]
 			var pp: float = spec[1]
 			var a0 := seam_angle(sx, y)
@@ -638,6 +645,68 @@ func _build_belt() -> void:
 			_rivet_at(a0 - 0.28, y, pp + 0.001, 0.006)
 			_rivet_at(a0 + 0.28, y, pp + 0.001, 0.006)
 	_flush_rivets(root, metal)
+
+
+## Point on the front half at lateral x and height y, lifted by push.
+func _front_at(x: float, y: float, push: float) -> Vector3:
+	return surface(angle_for_x(x, y, true), y, push)
+
+
+func _front_rivet(x: float, y: float, push: float, d: float) -> Transform3D:
+	var a := angle_for_x(x, y, true)
+	return K.rivet_xform(surface(a, y, push), normal_at(a, y, push), d)
+
+
+## Leather strip on the front from p0 to p1 ((x, y) pairs), width w, ending
+## at p1 in a point tip long.
+func _pointed_strip(p0: Vector2, p1: Vector2, w: float, tip: float, push: float) -> ArrayMesh:
+	var d := p1 - p0
+	var length := d.length()
+	var dir := d / length
+	var side := Vector2(-dir.y, dir.x)
+	var shape := func(u: float, t: float) -> Vector3:
+		var along := t * length
+		var half := w * 0.5
+		if tip > 0.0 and along > length - tip:
+			half *= maxf((length - along) / tip, 0.08)
+		var q := p0 + dir * along + side * (u - 0.5) * 2.0 * half
+		return _front_at(q.x, q.y, push)
+	var c := _front_at(p0.x, p0.y, push - 0.05)
+	return K.surface(shape, 0.0, 1.0, 3, 0.0, 1.0, maxi(4, int(length / 0.004)), c)
+
+
+## Square buckle frame (iron wire) with its prong, w x h, centred on (x, y).
+func _rect_buckle(root: Node3D, x: float, y: float, push: float, w: float, h: float) -> void:
+	var r := 0.0021
+	var cr := 0.005  # corner radius
+	var pts := PackedVector3Array()
+	var hw := w * 0.5 - cr
+	var hh := h * 0.5 - cr
+	var corners := [Vector2(hw, hh), Vector2(-hw, hh), Vector2(-hw, -hh), Vector2(hw, -hh)]
+	for k in 4:
+		var c: Vector2 = corners[k]
+		for i in 5:
+			var ang := PI * 0.5 * (k + i / 4.0)
+			var q := c + Vector2(cos(ang), sin(ang)) * cr
+			pts.append(_front_at(x + q.x, y + q.y, push))
+	pts.append(pts[0])
+	_add_mesh(root, K.tube(pts, r, 6), metal)
+	# prong across from the left bar, resting on the strap
+	var prong := PackedVector3Array()
+	for i in 6:
+		var px := lerpf(-w * 0.5, w * 0.5 + 0.002, i / 5.0)
+		prong.append(_front_at(x + px, y, push + 0.0012))
+	_add_mesh(root, K.tube(prong, 0.0013, 5), metal)
+
+
+var _holes: StandardMaterial3D
+
+func _hole_mat() -> StandardMaterial3D:
+	if _holes == null:
+		_holes = StandardMaterial3D.new()
+		_holes.albedo_color = Color(0.04, 0.03, 0.022)
+		_holes.roughness = 1.0
+	return _holes
 
 
 func _buckle(root: Node3D, a: float, y: float, push: float, w: float, h: float) -> void:
