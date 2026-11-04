@@ -10,6 +10,26 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Proportions](docs/proportions.png)
 
+## v0.14 – nine refinement passes on the cuirass
+
+Each pass was measured against the reference sheet before and after (`tools/edge_compare.py`, `tools/silhouette_compare.py`).
+
+1. **Armholes** fitted to the side view, closing in a round bottom.
+2. **Neckline** corrected column by column; the flat back is now meshed evenly so the back neck dips to its true depth (back neck 2.5 → 1.1 mm).
+3. **Hem:** the fauld no longer curls inward at the bottom; the hem levels out at the sides as the side view shows.
+4. **Outline:** widths below the armholes and the backplate's depth refitted; depth tables smoothed, which removes the banding on the backplate.
+5. **Shoulder straps:** an inch wide, leaning in toward the neck, blunt pointed ends under one big domed rivet, lying on the shoulder slope over the top.
+6. **Front belt:** 14 mm strap on the fauld directly under the breastplate's rolled lower edge, square iron buckle with prong, free end with keeper and pointed tip, hanging strap with domed rivet, punched holes. The plates now lap over the fauld.
+7. **Side straps:** riveted ahead of the seam, square buckle just behind it, holed end running back to a pointed tip.
+8. **Seams:** the side seam curves forward at the waist as on the sheet; the breastplate's side edge is a thin lap line instead of a rolled tube.
+9. **Finish:** new default **Aged Steel** finish sampled from the photos (darker, warmer, heavier hammering) and black-iron buckles and rivets.
+
+Silhouette error against the sheet: about 2 mm front, 0.9 mm side, 1.6 mm back (was 2.5 / 2.8 / 4.1). Edges: neck about 1 mm, front armholes 1 mm, front and back hem under 2 mm. The side view's hem stays about 9 mm off: the photos were taken in perspective, so the side view and the front view disagree about the hem, and the cuirass follows the front and back views there.
+
+![Reference vs cuirass](docs/cuirass.png)
+![Silhouette overlay](docs/cuirass_silhouette.png)
+![On the mannequin](docs/cuirass_on_mannequin.png)
+
 ## v0.13 – cuirass true to the reference sheet
 
 The cuirass follows the reference sheet only; it is not reshaped to fit the mannequin.
@@ -21,10 +41,6 @@ The cuirass follows the reference sheet only; it is not reshaped to fit the mann
 - **Size and placement on the mannequin** are the only fitting: the whole cuirass is scaled up 8% (uniformly, proportions unchanged) and moved 11 mm forward to sit on the figure.
 
 Silhouette error against the sheet: about 2.5 mm front, 2.7 mm side, 4 mm back (`tools/silhouette_compare.py`). Leather straps, belt with buckle and tail, and buckled side straps as before. Cuirass tab: show or hide each piece. Source: `scripts/pieces/cuirass.gd`.
-
-![Reference vs cuirass](docs/cuirass.png)
-![Silhouette overlay](docs/cuirass_silhouette.png)
-![On the mannequin](docs/cuirass_on_mannequin.png)
 
 ## v0.9 – add holes
 

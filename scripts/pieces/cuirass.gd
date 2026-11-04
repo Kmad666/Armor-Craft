@@ -73,6 +73,7 @@ const ROW_STEP := 0.0036    # metres between rows
 var metal: Material
 var leather: Material
 var brass: Material
+var iron: Material
 var m: Dictionary = {}
 var pieces := {}  # name -> Node3D
 ## Cut edges of each plate as [a, y, push] samples, for measuring against the sheet.
@@ -90,6 +91,7 @@ func setup(mats: Dictionary, measurements: Dictionary, chest_joint: Node3D, pelv
 	metal = mats["metal"]
 	leather = mats["leather"]
 	brass = mats["brass"]
+	iron = mats.get("iron", metal)
 	m = measurements
 	_build_table()
 	for n in ["Breastplate", "Backplate", "Shoulders", "Belt"]:
@@ -591,7 +593,7 @@ func _build_shoulder_straps() -> void:
 			var front: bool = t < 0.5
 			var a := angle_for_x(sx * x, _strap_y(t), front)
 			_rivets.append(K.rivet_xform(p, normal_at(a, _strap_y(t)), 0.0125))
-	_flush_rivets(root, metal)
+	_flush_rivets(root, iron)
 
 
 ## Height of the strap path at t (on the plates; TOP over the arc).
@@ -688,7 +690,7 @@ func _build_belt() -> void:
 			for z: float in [SS_BUCKLE - 0.022, SS_BUCKLE - 0.030]:
 				holes2.append(K.rivet_xform(pos.call(z, 0.0, 0.0009), normal_at(sx * angle_for_z(z, y), y, pp), 0.0032))
 	root.add_child(K.multimesh(holes2, K.rivet_mesh(), _hole_mat()))
-	_flush_rivets(root, metal)
+	_flush_rivets(root, iron)
 
 
 ## Point on the front half at lateral x and height y, lifted by push.
@@ -742,12 +744,12 @@ func _rect_buckle_at(root: Node3D, frame: Callable, w: float, h: float, prong_li
 			var q := c + Vector2(cos(ang), sin(ang)) * cr
 			pts.append(frame.call(q.x, q.y, 0.0))
 	pts.append(pts[0])
-	_add_mesh(root, K.tube(pts, r, 6), metal)
+	_add_mesh(root, K.tube(pts, r, 6), iron)
 	# prong across from the left bar, resting on the strap
 	var prong := PackedVector3Array()
 	for i in 6:
 		prong.append(frame.call(lerpf(-w * 0.5, w * 0.5 + 0.002, i / 5.0), 0.0, prong_lift))
-	_add_mesh(root, K.tube(prong, 0.0013, 5), metal)
+	_add_mesh(root, K.tube(prong, 0.0013, 5), iron)
 
 
 var _holes: StandardMaterial3D

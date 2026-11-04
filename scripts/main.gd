@@ -16,6 +16,7 @@ const METAL_SHADER := preload("res://shaders/metal.gdshader")
 const MAIL_SHADER := preload("res://shaders/mail.gdshader")
 
 const FINISHES := [
+	{"name": "Aged Steel", "color": Color(0.45, 0.435, 0.42), "metal": 0.8, "rough": 0.5, "patina": 0.85, "hammer": 1.8, "mail": Color(0.5, 0.49, 0.48)},
 	{"name": "Armour Steel", "color": Color(0.72, 0.73, 0.75), "metal": 0.88, "rough": 0.34, "patina": 0.55, "mail": Color(0.6, 0.6, 0.62)},
 	{"name": "Polished Steel", "color": Color(0.84, 0.86, 0.89), "metal": 0.92, "rough": 0.2, "patina": 0.2, "mail": Color(0.7, 0.71, 0.74)},
 	{"name": "Blackened Steel", "color": Color(0.2, 0.2, 0.22), "metal": 0.75, "rough": 0.48, "patina": 0.45, "mail": Color(0.25, 0.25, 0.27)},
@@ -108,6 +109,7 @@ var drag_handle := ""
 var shape_sliders := {}
 var helm_mat: ShaderMaterial
 var cuirass: Node3D
+var iron_mat: ShaderMaterial
 var hole_mode := false
 var hole_shape := 0
 var hole_w := 0.009
@@ -158,7 +160,7 @@ func _ready() -> void:
 	cuirass = Cuirass.new()
 	cuirass.name = "Cuirass"
 	add_child(cuirass)
-	cuirass.setup({"metal": metal_mat, "leather": leather_mat, "brass": brass_mat},
+	cuirass.setup({"metal": metal_mat, "leather": leather_mat, "brass": brass_mat, "iron": iron_mat},
 		mannequin.measurements, mannequin.node("Chest"), mannequin.node("Pelvis"))
 	gizmo = ShapeGizmo.new(spangenhelm)
 	gizmo.name = "ShapeGizmo"
@@ -267,6 +269,14 @@ func _build_materials() -> void:
 	leather_mat.roughness = 0.72
 	leather_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 
+	# black-iron buckles and rivets, as on the reference harness
+	iron_mat = ShaderMaterial.new()
+	iron_mat.shader = METAL_SHADER
+	iron_mat.set_shader_parameter("albedo", Color(0.42, 0.37, 0.32))
+	iron_mat.set_shader_parameter("metallic", 0.6)
+	iron_mat.set_shader_parameter("roughness", 0.62)
+	iron_mat.set_shader_parameter("patina", 0.9)
+
 	brass_mat = StandardMaterial3D.new()
 	brass_mat.albedo_color = Color(0.78, 0.6, 0.32)
 	brass_mat.metallic = 0.9
@@ -284,8 +294,9 @@ func _apply_finish(idx: int) -> void:
 	metal_mat.set_shader_parameter("metallic", f["metal"])
 	metal_mat.set_shader_parameter("roughness", f["rough"])
 	metal_mat.set_shader_parameter("patina", f["patina"])
+	metal_mat.set_shader_parameter("hammer", f.get("hammer", 1.0))
 	if helm_mat:
-		for k in ["albedo", "metallic", "roughness", "patina"]:
+		for k in ["albedo", "metallic", "roughness", "patina", "hammer"]:
 			helm_mat.set_shader_parameter(k, metal_mat.get_shader_parameter(k))
 	mail_mat.set_shader_parameter("albedo", f["mail"])
 	mail_mat.set_shader_parameter("metallic", f["metal"])
@@ -429,7 +440,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "v0.13  -  drag to orbit, scroll to zoom"
+	hint.text = "v0.14  -  drag to orbit, scroll to zoom"
 	hint.add_theme_color_override("font_color", Color(0.85, 0.83, 0.8))
 	hint.position = Vector2(24, 56)
 	layer.add_child(hint)
