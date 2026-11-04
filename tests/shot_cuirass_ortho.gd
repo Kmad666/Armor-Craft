@@ -9,8 +9,11 @@ func _init():
 		if c is CanvasLayer: c.visible = false
 	var hide_body := OS.get_environment("BODY") != "1"
 	if hide_body:
+		var keep := []
+		for piece in main.cuirass.pieces.values():
+			keep.append_array((piece as Node).find_children("*", "MeshInstance3D", true, false))
 		for mi in main.mannequin.find_children("*", "MeshInstance3D", true, false):
-			if not String(mi.name).begins_with("@"):
+			if not keep.has(mi):
 				mi.visible = false
 	main.wear_helmet = false; main._update_helmet_visibility()
 	# compare in reference space: undo the size / placement on the mannequin

@@ -251,12 +251,11 @@ func angle_for_x(x: float, y: float, front: bool) -> float:
 	var ax := absf(x)
 	for _i in 30:
 		var mid := (lo + hi) * 0.5
+		# lo is the centre-line end, hi the side seam (pi/2) on either half
 		if absf(surface(mid, y).x) < ax:
-			if front: lo = mid
-			else: hi = mid
+			lo = mid
 		else:
-			if front: hi = mid
-			else: lo = mid
+			hi = mid
 	return signf(x) * (lo + hi) * 0.5 if x != 0.0 else (0.0 if front else PI)
 
 
@@ -530,28 +529,60 @@ func _build_fauld() -> void:
 
 
 ## Leather straps riveted to the front and back shoulder tabs, over the top.
+## As on the sheet: an inch wide, leaning in toward the neck as they come down
+## the plates, ending in a blunt point under one big domed rivet.
+const SH_X := 0.116       # strap centre where it leaves the top of the plate
+const SH_LEAN := 0.008    # how far the tip sits in toward the neck
+const SH_W := 0.026       # strap width
+const SH_TIP := 0.013     # length of the pointed end
+const SH_LOW := 1.452     # tip height, front and back
+
+
 func _build_shoulder_straps() -> void:
 	var root: Node3D = pieces["Shoulders"]
 	_clear(root)
 	_rivets = []
-	var y_low := 1.452
 	for sx in [-1.0, 1.0]:
 		var shape := func(u: float, t: float) -> Vector3:
-			var x := 0.111 + (u - 0.5) * 0.036
-			return _strap_path(sx, x, y_low, t)
+			var y := _strap_y(t)
+			var k := clampf((TOP - y) / (TOP - SH_LOW), 0.0, 1.0)
+			var taper := 0.22 + 0.78 * clampf((y - SH_LOW) / SH_TIP, 0.0, 1.0)
+			var x := SH_X - SH_LEAN * k + (u - 0.5) * SH_W * taper
+			var p := _strap_path(sx, x, SH_LOW, t)
+			# over the top it lies on the slope of the shoulder: the outer
+			# edge drops, so from the side the strap shows its width
+			if t > 0.3 and t < 0.7:
+				p.y -= u * SH_W * 0.55 * sin(PI * (t - 0.3) / 0.4)
+			return p
 		var c := Vector3(sx * 0.11, 1.44, -0.05)
-		_add_mesh(root, K.surface(shape, 0.0, 1.0, 4, 0.0, 1.0, 40, c), leather)
-		# rivets near each end
-		for t in [0.06, 0.94]:
-			var p := _strap_path(sx, 0.111, y_low, t)
-			var n := (p - c).normalized()
-			_rivets.append(K.rivet_xform(p, n, 0.0085))
-	_flush_rivets(root, brass)
+		_add_mesh(root, K.surface(shape, 0.0, 1.0, 4, 0.0, 1.0, 60, c), leather)
+		# one big domed rivet near each end, as on the sheet
+		for t: float in [_strap_t(SH_LOW + 0.011, true), _strap_t(SH_LOW + 0.011, false)]:
+			var x := SH_X - SH_LEAN * clampf((TOP - _strap_y(t)) / (TOP - SH_LOW), 0.0, 1.0)
+			var p := _strap_path(sx, x, SH_LOW, t)
+			var front: bool = t < 0.5
+			var a := angle_for_x(sx * x, _strap_y(t), front)
+			_rivets.append(K.rivet_xform(p, normal_at(a, _strap_y(t)), 0.0125))
+	_flush_rivets(root, metal)
+
+
+## Height of the strap path at t (on the plates; TOP over the arc).
+func _strap_y(t: float) -> float:
+	if t < 0.3:
+		return lerpf(SH_LOW, TOP, t / 0.3)
+	if t > 0.7:
+		return lerpf(TOP, SH_LOW, (t - 0.7) / 0.3)
+	return TOP
+
+
+func _strap_t(y: float, front: bool) -> float:
+	var f := (y - SH_LOW) / (TOP - SH_LOW) * 0.3
+	return f if front else 1.0 - f
 
 
 ## Path over the shoulder at lateral position x (unsigned), t: 0 front .. 1 back.
 func _strap_path(sx: float, x: float, y_low: float, t: float) -> Vector3:
-	var lift := 0.0058
+	var lift := 0.0028
 	var front := func(y: float) -> Vector3:
 		return surface(angle_for_x(sx * x, y, true), y, lift)
 	var back := func(y: float) -> Vector3:
@@ -565,8 +596,8 @@ func _strap_path(sx: float, x: float, y_low: float, t: float) -> Vector3:
 	var d0: Vector3 = (p0 - front.call(TOP - 0.01)).normalized()
 	var d3: Vector3 = (p3 - back.call(TOP - 0.01)).normalized()
 	var span := p0.distance_to(p3)
-	var p1 := p0 + d0 * span * 0.45
-	var p2 := p3 + d3 * span * 0.45
+	var p1 := p0 + d0 * span * 0.36
+	var p2 := p3 + d3 * span * 0.36
 	var u := (t - 0.3) / 0.4
 	var v := 1.0 - u
 	return p0 * (v * v * v) + p1 * (3.0 * v * v * u) + p2 * (3.0 * v * u * u) + p3 * (u * u * u)
