@@ -37,10 +37,11 @@ const ARM_BOTTOM := 1.30   # armholes close below this
 const SEAM_Y := 1.128      # division between the mid and bottom sections
 const SEAM_Z := -0.039     # side seam where breast and back plates meet
 const BOTTOM_FRONT := 1.017
-const BOTTOM_RISE := 0.011 # the lower edge rises this much toward the back
-const CLEAR_SIDE := 0.014
-const CLEAR_FB := 0.02
+const BOTTOM_RISE := 0.022 # the lower edge rises this much over the hips
+const CLEAR_SIDE := 0.008
+const CLEAR_FB := 0.008
 
+const EDGE_R := 0.0033     # rolled edge radius (cuts are pulled in by this)
 const COLS := 144          # around the body
 const ROW_STEP := 0.0036    # metres between rows
 
@@ -146,9 +147,9 @@ func body(y: float) -> Vector3:
 	if y >= chest_base:
 		var zs := [chest_base, arm - 0.07, arm, m["shoulder_height"] - 0.02, top - 0.04, top]
 		return Vector3(
-			_hermite(y, zs, [ww * 1.02, cw * 0.97, cw, cw * 0.93, 0.105, 0.062]),
-			_hermite(y, zs, [wd, cd * 0.96, cd, cd * 0.88, 0.075, 0.058]),
-			_hermite(y, zs, [0.0, 0.008, 0.012, 0.004, -0.01, -0.006]))
+			_hermite(y, zs, [ww * 1.02, cw * 0.93, cw, cw * 0.93, 0.098, 0.062]),
+			_hermite(y, zs, [wd, cd * 0.93, cd, cd * 0.72, 0.056, 0.05]),
+			_hermite(y, zs, [0.0, 0.006, 0.012, 0.0, -0.012, -0.008]))
 	var pel_top: float = m["waist_height"] - 0.03
 	var crotch: float = m["crotch_height"]
 	var hip: float = m["hip_height"]
@@ -184,7 +185,7 @@ func _build_table() -> void:
 		bodies.append(b)
 		# at the armpit the arm hangs close to the chest: tighten the plate there
 		var pit := smoothstep(1.26, 1.29, y) * (1.0 - smoothstep(1.33, 1.37, y))
-		var clear_side := CLEAR_SIDE - 0.0075 * pit
+		var clear_side := CLEAR_SIDE - 0.002 * pit
 		cs_a.append(clear_side)
 		var xf := minf(_hermite(y, ty, T_XF), 0.1585 + 0.03 * (1.0 - pit))
 		var xb := minf(_hermite(y, ty, T_XB), 0.1585 + 0.03 * (1.0 - pit))
@@ -196,7 +197,7 @@ func _build_table() -> void:
 		# wearer in places); fades out over the shoulders, where the neck
 		# cut takes over
 		var fade := 1.0 - smoothstep(1.44, 1.48, y)
-		var margin := 0.002
+		var margin := 0.001
 		zf = lerpf(zf, _smax(zf, b.z + b.y + CLEAR_FB + margin, 0.02), fade)
 		zb = lerpf(zb, -_smax(-zb, -(b.z - b.y) + CLEAR_FB + margin, 0.02), fade)
 		if pit < 0.5:
@@ -312,9 +313,10 @@ func normal_at(a: float, y: float, push: float = 0.0) -> Vector3:
 	return n
 
 
-## Lower edge (front lowest, rising toward the back).
+## Lower edge: lowest at the front and back centres, rising over the hips.
 func bottom(a: float) -> float:
-	return BOTTOM_FRONT + BOTTOM_RISE * (1.0 - cos(a))
+	var s := sin(a)
+	return BOTTOM_FRONT + BOTTOM_RISE * s * s
 
 
 ## Angle of the side seam on side sx (+1 / -1).
@@ -337,9 +339,9 @@ func seam_angle(sx: float, y: float) -> float:
 func _cut_mid(p: Vector3, a: float, y: float, row: PackedFloat32Array, side: int) -> float:
 	var c := cos(a)
 	var ax := absf(p.x)
-	var neck := y - _lin(ax, NECK_F if c >= 0.0 else NECK_B)
+	var neck := y - (_lin(ax, NECK_F if c >= 0.0 else NECK_B) - EDGE_R)
 	var w := (c + 1.0) * 0.5
-	var arm := ax - lerpf(row[6], row[5], w)
+	var arm := ax - (lerpf(row[6], row[5], w) - EDGE_R)
 	var f := maxf(neck, arm)
 	# split into breast (front of the seam) and back (behind, tucked under)
 	if side > 0:
@@ -350,7 +352,7 @@ func _cut_mid(p: Vector3, a: float, y: float, row: PackedFloat32Array, side: int
 
 
 func _cut_fauld(_p: Vector3, a: float, y: float, _row: PackedFloat32Array, _side: int) -> float:
-	return bottom(a) - y
+	return bottom(a) + EDGE_R - y
 
 
 ## Builds a clipped surface; returns [mesh, boundary loops (arrays of [a, y])].
@@ -529,17 +531,19 @@ func _build_plate(piece_name: String, side: int) -> void:
 	_add_mesh(root, res[0], metal)
 	# rolled edges everywhere except the hidden bottom row
 	var skip := func(_a: float, y: float) -> bool: return y < SEAM_Y - 0.01
-	_rolled_edges(root, res[1], push, 0.0033, skip)
+	_rolled_edges(root, res[1], push, EDGE_R, skip)
 
 
 func _build_fauld() -> void:
 	var root: Node3D = pieces["Fauld"]
 	_clear(root)
-	var push := 0.0035
+	var push := 0.002
 	var res: Array = _shell(BOTTOM_FRONT - 0.002, SEAM_Y + 0.004, push, Callable(self, "_cut_fauld"), 0)
 	_add_mesh(root, res[0], metal)
-	var skip := func(_a: float, _y: float) -> bool: return false
-	_rolled_edges(root, res[1], push, 0.0033, skip)
+	var hem := func(_a: float, y: float) -> bool: return y > SEAM_Y
+	var top := func(_a: float, y: float) -> bool: return y < SEAM_Y
+	_rolled_edges(root, res[1], push, EDGE_R, hem)   # hem
+	_rolled_edges(root, res[1], push, 0.0022, top)   # top edge, under the belt
 	# side seam lines on the flared band
 	for sx in [-1.0, 1.0]:
 		var pts := PackedVector3Array()
@@ -602,7 +606,7 @@ func _build_belt() -> void:
 	_clear(root)
 	_rivets = []
 	var by := SEAM_Y + 0.002
-	var push := 0.0075
+	var push := 0.006
 	# belt across the front, from seam to seam
 	var a_end := absf(seam_angle(1.0, by)) - 0.08
 	var band := func(a: float, t: float) -> Vector3:
@@ -616,12 +620,12 @@ func _build_belt() -> void:
 	_buckle(root, ab, by, push + 0.002, 0.024, 0.02)
 	var tail := func(a: float, t: float) -> Vector3:
 		var y := lerpf(by - 0.006, bottom(0.0) + 0.012, t)
-		return surface(a, y, 0.0035 + 0.0045)
+		return surface(a, y, 0.002 + 0.0045)
 	_add_mesh(root, K.surface(tail, ab - 0.05, ab + 0.05, 4, 0.0, 1.0, 16, Vector3(0, 1.08, 0)), leather)
-	_rivet_at(ab, by - 0.016, 0.0035 + 0.0055, 0.0055)
+	_rivet_at(ab, by - 0.016, 0.002 + 0.0055, 0.0055)
 	# buckled straps across each side seam: one on the plates, one on the fauld
 	for sx in [-1.0, 1.0]:
-		for spec in [[1.237, 0.0035], [1.068, 0.0035 + 0.0035]]:
+		for spec in [[1.237, 0.0035], [1.068, 0.002 + 0.0035]]:
 			var y: float = spec[0]
 			var pp: float = spec[1]
 			var a0 := seam_angle(sx, y)

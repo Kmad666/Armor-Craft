@@ -274,11 +274,11 @@ def build(wood, dark):
         z = lerp(chest_base, top, t)
         # widths from the outline: waist -> chest at the armpits -> shoulders -> neck
         keys_z = [chest_base, z_arm - 0.07, z_arm, m["shoulder_height"] - 0.02, top - 0.04, top]
-        keys_w = [ww * 1.02, cw * 0.97, cw, cw * 0.93, 0.105, 0.062]
-        keys_d = [wd, cd * 0.96, cd, cd * 0.88, 0.075, 0.058]
+        keys_w = [ww * 1.02, cw * 0.93, cw, cw * 0.93, 0.098, 0.062]
+        keys_d = [wd, cd * 0.93, cd, cd * 0.72, 0.056, 0.05]
         rs = interp(z, keys_z, keys_w)
         rf = interp(z, keys_z, keys_d)
-        of = interp(z, keys_z, [0.0, 0.008, 0.012, 0.004, -0.01, -0.006])
+        of = interp(z, keys_z, [0.0, 0.006, 0.012, 0.0, -0.012, -0.008])
         return rs, rf, 0.0, of
 
     add(loft("ChestBlock", Vector((0, 0, chest_base)), Vector((0, 0, top)), chest_prof, wood, na=56, nt=36,

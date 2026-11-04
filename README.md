@@ -18,7 +18,11 @@ The cuirass is traced from a front / side / back reference: the outline in each 
 - **Bottom section:** the fauld, one band that flares out below the waist, with the lower edge dipping at the front.
 - **Leather:** straps riveted to the front and back tabs join them over each shoulder; a belt across the front sits on the division with a buckle and hanging tail; buckled straps cross each side seam on the plates and on the fauld.
 - Neck and armholes are cut along smooth curves (marching-triangle clipping on the shell grid) and every cut edge gets a rolled edge.
-- Where the mannequin is fuller than the reference wearer, the profiles are widened just enough to clear it and then smoothed. A test measures the gap from every piece to the wood (at least 5 mm).
+- Where the mannequin is fuller than the reference wearer, the profiles are widened just enough to clear it and then smoothed. A test measures the gap from every piece to the wood (at least 3 mm).
+
+**Silhouette pass:** the cuirass is rendered front / side / back at the reference sheet's scale and its outline is laid over the traced one (cyan over yellow below); `tools/silhouette_compare.py` reports the edge error row by row. Average error is about 4 mm in every view. Getting there meant giving the mannequin a realistic side profile (its upper chest now slopes back toward the collarbone and the ribcage narrows gradually below the armpit), trimming the padding to arming-doublet thickness (8 mm), pulling every cut in by the rolled edge's radius, and raising the hem over the hips.
+
+![Silhouette overlay](docs/cuirass_silhouette.png)
 
 Cuirass tab: show or hide the breastplate, backplate, fauld, shoulder straps and belts. Source: `scripts/pieces/cuirass.gd` (traced tables at the top).
 
