@@ -13,6 +13,9 @@ func _init():
 			if not String(mi.name).begins_with("@"):
 				mi.visible = false
 	main.wear_helmet = false; main._update_helmet_visibility()
+	# compare in reference space: undo the size / placement on the mannequin
+	for piece in main.cuirass.pieces.values():
+		(piece as Node3D).global_transform = Transform3D.IDENTITY
 	main.set_process(false)
 	var cam: Camera3D = main.camera
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL

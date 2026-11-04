@@ -12,34 +12,49 @@ extends Node3D
 ##                plus buckled straps across each side seam
 ##
 ## The shell is a ring surface whose width (front and back views) and depth
-## (side view) at every height come from the traced outlines (T_* tables).
-## Neck and armholes are cut out along smooth curves with marching-triangle
-## clipping, and every cut edge gets a rolled edge. Anywhere the traced shape
-## would come too close to the mannequin, it is pushed out to clear it.
+## (side view) at every height come straight from the traced outlines (T_*
+## tables), at one uniform scale. The shape follows the reference only; it is
+## not adjusted to the mannequin. Neck and armholes are cut out along smooth
+## curves with marching-triangle clipping, and every cut edge gets a rolled edge.
 ##
 ## Axes: +Y up, +Z toward the front. Angle a = 0 is the front centre,
 ## positive a turns toward +X (the figure's left).
 
 const K := preload("res://scripts/mesh_kit.gd")
 
-# ---- traced outlines (metres): height, half-width front/back, z front/back --
-const T_Y := [1.512, 1.5017, 1.4929, 1.4840, 1.4752, 1.4663, 1.4575, 1.4487, 1.4398, 1.4310, 1.4221, 1.4133, 1.4044, 1.3956, 1.3867, 1.3779, 1.3690, 1.3602, 1.3513, 1.3425, 1.3337, 1.3248, 1.3160, 1.3071, 1.2983, 1.2894, 1.2810, 1.2731, 1.2651, 1.2572, 1.2493, 1.2413, 1.2334, 1.2254, 1.2175, 1.2096, 1.2016, 1.1937, 1.1857, 1.1778, 1.1699, 1.1619, 1.1540, 1.1463, 1.1389, 1.1314, 1.1240, 1.1166, 1.1091, 1.1017, 1.0943, 1.0869, 1.0794, 1.0720, 1.0646, 1.0571, 1.0497, 1.0423, 1.0]
-const T_XF := [0.1336, 0.1336, 0.1334, 0.1286, 0.1282, 0.1274, 0.1270, 0.1265, 0.1267, 0.1267, 0.1272, 0.1280, 0.1290, 0.1305, 0.1321, 0.1340, 0.1363, 0.1386, 0.1415, 0.1448, 0.1482, 0.1527, 0.1577, 0.1629, 0.1629, 0.1605, 0.1586, 0.1563, 0.1540, 0.1521, 0.1502, 0.1473, 0.1451, 0.1432, 0.1413, 0.1392, 0.1374, 0.1359, 0.1344, 0.1330, 0.1330, 0.1340, 0.1336, 0.1325, 0.1334, 0.1346, 0.1363, 0.1392, 0.1423, 0.1450, 0.1478, 0.1507, 0.1560, 0.1600, 0.1630, 0.1640, 0.1648, 0.1648, 0.1648]
-const T_XB := [0.1276, 0.1276, 0.1353, 0.1315, 0.1301, 0.1305, 0.1301, 0.1303, 0.1305, 0.1307, 0.1313, 0.1319, 0.1326, 0.1338, 0.1349, 0.1363, 0.1384, 0.1403, 0.1428, 0.1459, 0.1492, 0.1528, 0.1573, 0.1621, 0.1625, 0.1596, 0.1571, 0.1548, 0.1523, 0.1502, 0.1478, 0.1448, 0.1424, 0.1405, 0.1382, 0.1363, 0.1344, 0.1328, 0.1313, 0.1297, 0.1294, 0.1310, 0.1310, 0.1300, 0.1297, 0.1305, 0.1332, 0.1365, 0.1392, 0.1421, 0.1450, 0.1476, 0.1530, 0.1570, 0.1600, 0.1610, 0.1613, 0.1613, 0.1613]
-const T_ZF := [-0.025, -0.0091, 0.0019, 0.0110, 0.0225, 0.0369, 0.0479, 0.0522, 0.0599, 0.0671, 0.0742, 0.0810, 0.0877, 0.0944, 0.1001, 0.1059, 0.1116, 0.1169, 0.1221, 0.1260, 0.1308, 0.1346, 0.1384, 0.1413, 0.1442, 0.1466, 0.1480, 0.1499, 0.1504, 0.1514, 0.1509, 0.1504, 0.1494, 0.1485, 0.1471, 0.1456, 0.1442, 0.1423, 0.1403, 0.1380, 0.1356, 0.1327, 0.1298, 0.1285, 0.1303, 0.1332, 0.1332, 0.1327, 0.1312, 0.1336, 0.1360, 0.1380, 0.1399, 0.1418, 0.1442, 0.1466, 0.1490, 0.1499, 0.1505]
-const T_ZB := [-0.100, -0.1073, -0.1164, -0.1241, -0.1298, -0.1332, -0.1360, -0.1380, -0.1394, -0.1408, -0.1418, -0.1427, -0.1437, -0.1447, -0.1447, -0.1437, -0.1437, -0.1427, -0.1423, -0.1413, -0.1399, -0.1389, -0.1370, -0.1351, -0.1332, -0.1312, -0.1293, -0.1265, -0.1245, -0.1217, -0.1188, -0.1164, -0.1140, -0.1111, -0.1083, -0.1054, -0.1030, -0.1006, -0.0982, -0.0963, -0.0948, -0.0939, -0.0939, -0.0948, -0.0958, -0.0992, -0.1030, -0.1068, -0.1106, -0.1145, -0.1188, -0.1226, -0.1269, -0.1312, -0.1351, -0.1394, -0.1430, -0.1440, -0.1445]
-# neckline (front and back views): |x| -> height of the cut
-const NECK_F := [[0.0, 1.4645], [0.0389, 1.4699], [0.051, 1.4734], [0.0599, 1.477], [0.0672, 1.4805], [0.073, 1.484], [0.0785, 1.4876], [0.0828, 1.4911], [0.0868, 1.4947], [0.0901, 1.4982], [0.0928, 1.5017], [0.0965, 1.53], [0.11, 1.6]]
-const NECK_B := [[0.0, 1.471], [0.0343, 1.4752], [0.051, 1.4787], [0.0622, 1.4823], [0.071, 1.4858], [0.078, 1.4893], [0.0835, 1.4929], [0.0882, 1.4964], [0.0916, 1.5], [0.0939, 1.5035], [0.097, 1.53], [0.11, 1.6]]
+# ---- traced from the reference sheet (front / side / back) -----------------
+# One uniform scale for every axis (0.818 mm per pixel), so the proportions
+# are the reference's own. Per height: ring half-width, armhole cut
+# half-width in the front and back views, z of the front and back
+# silhouettes in the side view, and z of the side seam (widest point).
+const T_Y := [1.5073, 1.5032, 1.4991, 1.4950, 1.4909, 1.4868, 1.4827, 1.4786, 1.4746, 1.4705, 1.4664, 1.4623, 1.4582, 1.4541, 1.4500, 1.4459, 1.4418, 1.4377, 1.4337, 1.4296, 1.4255, 1.4214, 1.4173, 1.4132, 1.4091, 1.4050, 1.4009, 1.3968, 1.3928, 1.3887, 1.3846, 1.3805, 1.3764, 1.3723, 1.3682, 1.3641, 1.3600, 1.3559, 1.3519, 1.3478, 1.3437, 1.3396, 1.3355, 1.3314, 1.3273, 1.3232, 1.3191, 1.3150, 1.3110, 1.3069, 1.3028, 1.2987, 1.2946, 1.2905, 1.2864, 1.2823, 1.2782, 1.2741, 1.2701, 1.2660, 1.2619, 1.2578, 1.2537, 1.2496, 1.2455, 1.2414, 1.2373, 1.2332, 1.2292, 1.2251, 1.2210, 1.2169, 1.2128, 1.2087, 1.2046, 1.2005, 1.1964, 1.1923, 1.1883, 1.1842, 1.1801, 1.1760, 1.1719, 1.1678, 1.1637, 1.1596, 1.1555, 1.1514, 1.1474, 1.1433, 1.1392, 1.1351, 1.1310, 1.1269, 1.1228, 1.1187, 1.1146, 1.1105, 1.1065, 1.1024, 1.0983, 1.0942, 1.0901, 1.0860, 1.0819, 1.0778, 1.0737, 1.0696, 1.0656, 1.0615, 1.0574, 1.0533, 1.0492, 1.0451, 1.0410, 1.0369, 1.0328, 1.0287, 1.0247]
+const T_RX := [0.1361, 0.1426, 0.1475, 0.1488, 0.1511, 0.1501, 0.1465, 0.1431, 0.1419, 0.1423, 0.1437, 0.1452, 0.1470, 0.1488, 0.1506, 0.1520, 0.1533, 0.1543, 0.1553, 0.1563, 0.1572, 0.1582, 0.1591, 0.1599, 0.1606, 0.1613, 0.1620, 0.1628, 0.1635, 0.1642, 0.1648, 0.1655, 0.1661, 0.1669, 0.1676, 0.1684, 0.1692, 0.1699, 0.1707, 0.1715, 0.1724, 0.1734, 0.1745, 0.1758, 0.1769, 0.1777, 0.1776, 0.1766, 0.1747, 0.1729, 0.1704, 0.1687, 0.1673, 0.1660, 0.1648, 0.1636, 0.1625, 0.1613, 0.1601, 0.1588, 0.1575, 0.1561, 0.1548, 0.1536, 0.1524, 0.1513, 0.1502, 0.1491, 0.1480, 0.1470, 0.1461, 0.1452, 0.1443, 0.1434, 0.1424, 0.1416, 0.1408, 0.1402, 0.1398, 0.1399, 0.1403, 0.1409, 0.1411, 0.1410, 0.1405, 0.1399, 0.1395, 0.1395, 0.1399, 0.1405, 0.1413, 0.1423, 0.1437, 0.1453, 0.1468, 0.1484, 0.1500, 0.1516, 0.1531, 0.1547, 0.1565, 0.1589, 0.1620, 0.1655, 0.1686, 0.1709, 0.1725, 0.1733, 0.1736, 0.1735, 0.1733, 0.1733, 0.1730, 0.1710, 0.1659, 0.1563, 0.1429, 0.1276, 0.1143]
+const T_XF := [0.1321, 0.1411, 0.1460, 0.1444, 0.1436, 0.1411, 0.1368, 0.1364, 0.1358, 0.1358, 0.1350, 0.1350, 0.1346, 0.1346, 0.1344, 0.1344, 0.1346, 0.1346, 0.1346, 0.1350, 0.1352, 0.1358, 0.1362, 0.1370, 0.1374, 0.1380, 0.1389, 0.1399, 0.1407, 0.1415, 0.1427, 0.1440, 0.1450, 0.1464, 0.1481, 0.1495, 0.1511, 0.1528, 0.1546, 0.1564, 0.1587, 0.1607, 0.1630, 0.1658, 0.1685, 0.1714, 0.1738, 0.1740, 0.1726, 0.1714, 0.1703, 0.1689, 0.1681, 0.1669, 0.1656, 0.1644, 0.1632, 0.1622, 0.1611, 0.1599, 0.1587, 0.1573, 0.1562, 0.1550, 0.1538, 0.1526, 0.1517, 0.1507, 0.1493, 0.1485, 0.1476, 0.1468, 0.1460, 0.1448, 0.1442, 0.1431, 0.1423, 0.1417, 0.1409, 0.1405, 0.1425, 0.1425, 0.1431, 0.1421, 0.1421, 0.1389, 0.1409, 0.1413, 0.1419, 0.1427, 0.1421, 0.1438, 0.1454, 0.1470, 0.1485, 0.1501, 0.1515, 0.1530, 0.1546, 0.1562, 0.1579, 0.1591, 0.1624, 0.1691, 0.1716, 0.1730, 0.1744, 0.1757, 0.1763, 0.1759, 0.1738, 0.1742, 0.1761, 0.1765, 0.1726, 0.1638, 0.1517, 0.1362, 0.1164]
+const T_XB := [0.1231, 0.1350, 0.1440, 0.1473, 0.1460, 0.1444, 0.1389, 0.1382, 0.1382, 0.1387, 0.1382, 0.1382, 0.1382, 0.1382, 0.1384, 0.1384, 0.1387, 0.1389, 0.1389, 0.1391, 0.1395, 0.1399, 0.1403, 0.1407, 0.1413, 0.1417, 0.1423, 0.1429, 0.1438, 0.1444, 0.1456, 0.1462, 0.1472, 0.1483, 0.1497, 0.1509, 0.1526, 0.1538, 0.1554, 0.1573, 0.1593, 0.1611, 0.1634, 0.1656, 0.1683, 0.1710, 0.1730, 0.1732, 0.1718, 0.1703, 0.1693, 0.1677, 0.1667, 0.1652, 0.1636, 0.1626, 0.1620, 0.1603, 0.1595, 0.1579, 0.1564, 0.1546, 0.1534, 0.1521, 0.1511, 0.1497, 0.1489, 0.1476, 0.1464, 0.1454, 0.1444, 0.1436, 0.1427, 0.1419, 0.1405, 0.1399, 0.1391, 0.1384, 0.1378, 0.1370, 0.1384, 0.1405, 0.1401, 0.1401, 0.1401, 0.1399, 0.1366, 0.1370, 0.1378, 0.1387, 0.1387, 0.1403, 0.1419, 0.1436, 0.1452, 0.1468, 0.1485, 0.1501, 0.1517, 0.1530, 0.1546, 0.1560, 0.1577, 0.1658, 0.1681, 0.1697, 0.1712, 0.1722, 0.1730, 0.1722, 0.1697, 0.1714, 0.1730, 0.1734, 0.1689, 0.1583, 0.1425, 0.1205, 0.0857]
+const T_ZF := [-0.0274, -0.0221, -0.0176, -0.0131, -0.0090, -0.0049, -0.0008, 0.0041, 0.0098, 0.0164, 0.0225, 0.0282, 0.0290, 0.0311, 0.0339, 0.0372, 0.0401, 0.0434, 0.0466, 0.0499, 0.0524, 0.0556, 0.0585, 0.0614, 0.0642, 0.0671, 0.0695, 0.0724, 0.0748, 0.0773, 0.0798, 0.0822, 0.0843, 0.0867, 0.0892, 0.0908, 0.0928, 0.0949, 0.0965, 0.0990, 0.1006, 0.1023, 0.1039, 0.1055, 0.1067, 0.1080, 0.1096, 0.1104, 0.1117, 0.1125, 0.1137, 0.1145, 0.1153, 0.1157, 0.1162, 0.1166, 0.1170, 0.1174, 0.1174, 0.1170, 0.1170, 0.1166, 0.1166, 0.1162, 0.1157, 0.1153, 0.1145, 0.1141, 0.1137, 0.1129, 0.1125, 0.1117, 0.1108, 0.1100, 0.1092, 0.1084, 0.1076, 0.1063, 0.1055, 0.1043, 0.1035, 0.1023, 0.1010, 0.0998, 0.0990, 0.0973, 0.0961, 0.0961, 0.0994, 0.1010, 0.1018, 0.1027, 0.1018, 0.1018, 0.1010, 0.0994, 0.1006, 0.1018, 0.1027, 0.1035, 0.1043, 0.1051, 0.1067, 0.1076, 0.1080, 0.1092, 0.1100, 0.1108, 0.1117, 0.1125, 0.1141, 0.1149, 0.1149, 0.1157, 0.1166, 0.1137, 0.1149, 0.1129, 0.1051]
+const T_ZB := [-0.0982, -0.1006, -0.1051, -0.1088, -0.1129, -0.1162, -0.1190, -0.1215, -0.1231, -0.1247, -0.1264, -0.1272, -0.1280, -0.1288, -0.1297, -0.1305, -0.1313, -0.1321, -0.1321, -0.1329, -0.1333, -0.1337, -0.1342, -0.1346, -0.1350, -0.1354, -0.1354, -0.1354, -0.1354, -0.1354, -0.1346, -0.1346, -0.1346, -0.1342, -0.1337, -0.1337, -0.1329, -0.1329, -0.1321, -0.1321, -0.1313, -0.1305, -0.1301, -0.1297, -0.1288, -0.1280, -0.1272, -0.1264, -0.1256, -0.1247, -0.1239, -0.1227, -0.1215, -0.1207, -0.1198, -0.1190, -0.1174, -0.1166, -0.1153, -0.1141, -0.1133, -0.1117, -0.1108, -0.1100, -0.1084, -0.1076, -0.1059, -0.1051, -0.1043, -0.1027, -0.1018, -0.1002, -0.0994, -0.0986, -0.0973, -0.0961, -0.0953, -0.0945, -0.0937, -0.0928, -0.0928, -0.0920, -0.0920, -0.0920, -0.0920, -0.0928, -0.0928, -0.0937, -0.0941, -0.0953, -0.0969, -0.0986, -0.1002, -0.1023, -0.1035, -0.1055, -0.1072, -0.1088, -0.1104, -0.1121, -0.1137, -0.1157, -0.1174, -0.1190, -0.1207, -0.1227, -0.1243, -0.1264, -0.1280, -0.1297, -0.1317, -0.1346, -0.1354, -0.1333, -0.1256, -0.1112, -0.0834, -0.0405, -0.0029]
+const T_ZMID := [-0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0454, -0.0175, 0.0133]
+# neckline: |x| -> height of the cut (front and back views)
+const NECK_F := [[0.0000, 1.4664], [0.0327, 1.4696], [0.0413, 1.4713], [0.0487, 1.4729], [0.0542, 1.4746], [0.0589, 1.4762], [0.0636, 1.4778], [0.0677, 1.4795], [0.0714, 1.4811], [0.0748, 1.4827], [0.0775, 1.4844], [0.0806, 1.4860], [0.0834, 1.4876], [0.0857, 1.4893], [0.0879, 1.4909], [0.0904, 1.4925], [0.0922, 1.4942], [0.0945, 1.4958], [0.0957, 1.4975], [0.0973, 1.4991], [0.0986, 1.5007], [0.0998, 1.5024], [0.1038, 1.5300], [0.1200, 1.6000]]
+const NECK_B := [[0.0000, 1.4721], [0.0364, 1.4762], [0.0462, 1.4778], [0.0542, 1.4795], [0.0601, 1.4811], [0.0661, 1.4827], [0.0710, 1.4844], [0.0755, 1.4860], [0.0793, 1.4876], [0.0828, 1.4893], [0.0861, 1.4909], [0.0888, 1.4925], [0.0914, 1.4942], [0.0937, 1.4958], [0.0959, 1.4975], [0.0973, 1.4991], [0.0990, 1.5007], [0.0998, 1.5024], [0.1038, 1.5300], [0.1200, 1.6000]]
+# hem: |x| -> height of the lower edge (front and back views)
+const HEM_F := [[0.0029, 1.0148], [0.0127, 1.0148], [0.0225, 1.0148], [0.0323, 1.0157], [0.0421, 1.0157], [0.0520, 1.0165], [0.0618, 1.0165], [0.0716, 1.0173], [0.0814, 1.0189], [0.0912, 1.0197], [0.1010, 1.0214], [0.1109, 1.0230], [0.1207, 1.0247], [0.1305, 1.0263], [0.1403, 1.0287], [0.1501, 1.0312], [0.1599, 1.0345], [0.1698, 1.0394], [0.1730, 1.0410]]
+const HEM_B := [[0.0029, 1.0197], [0.0127, 1.0197], [0.0225, 1.0197], [0.0323, 1.0206], [0.0421, 1.0206], [0.0520, 1.0214], [0.0618, 1.0214], [0.0716, 1.0222], [0.0814, 1.0230], [0.0912, 1.0238], [0.1010, 1.0255], [0.1109, 1.0263], [0.1207, 1.0279], [0.1305, 1.0296], [0.1403, 1.0320], [0.1501, 1.0337], [0.1599, 1.0369], [0.1697, 1.0410], [0.1730, 1.0443]]
 
-const TOP := 1.512
-const ARM_BOTTOM := 1.30   # armholes close below this
-const SEAM_Y := 1.128      # division between the mid and bottom sections
-const SEAM_Z := -0.039     # side seam where breast and back plates meet
-const BOTTOM_FRONT := 1.017
-const BOTTOM_RISE := 0.022 # the lower edge rises this much over the hips
-const CLEAR_SIDE := 0.008
-const CLEAR_FB := 0.008
+const TOP := 1.5073
+const ARM_BOTTOM := 1.3060   # armholes close below this
+const SEAM_Y := 1.1351       # division between the mid and bottom sections
+const SEAM_Z := -0.0454       # side seam where breast and back plates meet
+const STRAP_Y := [1.2512, 1.0713]  # buckled side straps (plates, fauld)
+const N_FRONT := 2.0       # breastplate cross-section: round
+const N_BACK := 3.6        # backplate cross-section: flatter
+## Size and placement on the mannequin. The reference has no absolute size,
+## so the whole cuirass is scaled uniformly about FIT_ANCHOR (proportions
+## unchanged) and shifted forward to sit on the figure.
+const FIT_SCALE := 1.08
+const FIT_SHIFT := Vector3(0.0, 0.0, 0.011)
+const FIT_ANCHOR := Vector3(0.0, 1.30, 0.0)
+const BACK_TUCK := 0.1     # backplate runs this far (radians) under the breastplate at the seams
 
 const EDGE_R := 0.0033     # rolled edge radius (cuts are pulled in by this)
 const COLS := 144          # around the body
@@ -75,8 +90,14 @@ func _piece(piece_name: String, joint: Node3D) -> Node3D:
 	var n := Node3D.new()
 	n.name = piece_name
 	joint.add_child(n)
-	n.global_transform = Transform3D.IDENTITY  # modelled in mannequin space
+	# modelled in reference space; placed on the mannequin by the fit transform
+	n.global_transform = fit_transform()
 	return n
+
+
+func fit_transform() -> Transform3D:
+	return Transform3D(Basis.from_scale(Vector3.ONE * FIT_SCALE),
+		FIT_ANCHOR * (1.0 - FIT_SCALE) + FIT_SHIFT)
 
 
 func rebuild_all() -> void:
@@ -133,114 +154,29 @@ static func _smax(a: float, b: float, k: float) -> float:
 	return maxf(a, b) + h * h * k * 0.25
 
 
-## Mannequin torso at height y: (half-width, half-depth, forward offset).
-func body(y: float) -> Vector3:
-	var cw: float = m["chest_width"] * 0.5
-	var cd: float = m["chest_depth"] * 0.5
-	var ww: float = m["waist_width"] * 0.5
-	var wd: float = m["waist_depth"] * 0.5
-	var hw: float = m["hip_width"] * 0.5
-	var hd: float = m["hip_depth"] * 0.5
-	var chest_base: float = m["waist_height"] + 0.025
-	var top: float = m["neck_base_height"] + 0.005
-	var arm: float = m["armpit_height"]
-	if y >= chest_base:
-		var zs := [chest_base, arm - 0.07, arm, m["shoulder_height"] - 0.02, top - 0.04, top]
-		return Vector3(
-			_hermite(y, zs, [ww * 1.02, cw * 0.93, cw, cw * 0.93, 0.098, 0.062]),
-			_hermite(y, zs, [wd, cd * 0.93, cd, cd * 0.72, 0.056, 0.05]),
-			_hermite(y, zs, [0.0, 0.006, 0.012, 0.0, -0.012, -0.008]))
-	var pel_top: float = m["waist_height"] - 0.03
-	var crotch: float = m["crotch_height"]
-	var hip: float = m["hip_height"]
-	var zs2 := [pel_top, hip + 0.06, hip, crotch + 0.03, crotch]
-	var p := Vector3(
-		_hermite(y, zs2, [ww * 1.02, hw * 0.94, hw, hw * 0.93, hw * 0.62]),
-		_hermite(y, zs2, [wd, hd * 0.95, hd, hd * 0.86, hd * 0.55]),
-		_hermite(y, zs2, [0.0, 0.004, 0.0, -0.004, 0.0]))
-	if y > pel_top:
-		var k := smoothstep(pel_top, chest_base, y)
-		p = p.lerp(Vector3(ww * 1.02, wd, 0.0), k)
-	return p
-
-
 ## Precomputes everything that depends only on height, at 1 mm spacing.
 ## Per row: ring half-width front/back, z front/back/middle, armhole cut
 ## half-width front/back, body half-width, body z front/back/centre, spare.
 func _build_table() -> void:
 	_tab.resize(TAB_N * STRIDE)
 	var ty := T_Y.duplicate()
-	# 1. sample the traced outlines densely
-	var xf_a := PackedFloat32Array()
-	var xb_a := PackedFloat32Array()
-	var zf_a := PackedFloat32Array()
-	var zb_a := PackedFloat32Array()
-	var cs_a := PackedFloat32Array()
-	var tf_a := PackedFloat32Array()  # armhole cut, straight from the trace
-	var tb_a := PackedFloat32Array()
-	var bodies := []
+	var cols := []
+	for col in [T_RX, T_XF, T_XB, T_ZF, T_ZB, T_ZMID]:
+		var a := PackedFloat32Array()
+		for i in TAB_N:
+			a.append(_hermite(TAB_Y0 + i * 0.001, ty, col))
+		cols.append(_smooth(a, 6))
 	for i in TAB_N:
 		var y := TAB_Y0 + i * 0.001
-		var b := body(y)
-		bodies.append(b)
-		# at the armpit the arm hangs close to the chest: tighten the plate there
-		var pit := smoothstep(1.26, 1.29, y) * (1.0 - smoothstep(1.33, 1.37, y))
-		var clear_side := CLEAR_SIDE - 0.002 * pit
-		cs_a.append(clear_side)
-		var xf := minf(_hermite(y, ty, T_XF), 0.1585 + 0.03 * (1.0 - pit))
-		var xb := minf(_hermite(y, ty, T_XB), 0.1585 + 0.03 * (1.0 - pit))
-		tf_a.append(xf)
-		tb_a.append(xb)
-		var zf := _hermite(y, ty, T_ZF)
-		var zb := _hermite(y, ty, T_ZB)
-		# 2. make room for the mannequin (it is fuller than the reference
-		# wearer in places); fades out over the shoulders, where the neck
-		# cut takes over
-		var fade := 1.0 - smoothstep(1.44, 1.48, y)
-		var margin := 0.001
-		zf = lerpf(zf, _smax(zf, b.z + b.y + CLEAR_FB + margin, 0.02), fade)
-		zb = lerpf(zb, -_smax(-zb, -(b.z - b.y) + CLEAR_FB + margin, 0.02), fade)
-		if pit < 0.5:
-			xf = lerpf(xf, _smax(xf, b.x + clear_side + margin, 0.015), fade)
-			xb = lerpf(xb, _smax(xb, b.x + clear_side + margin, 0.015), fade)
-		xf_a.append(xf)
-		xb_a.append(xb)
-		zf_a.append(zf)
-		zb_a.append(zb)
-	# 3. smooth so the steel reads as one fair curve
-	xf_a = _smooth(xf_a, 14)
-	xb_a = _smooth(xb_a, 14)
-	zf_a = _smooth(zf_a, 18)
-	zb_a = _smooth(zb_a, 18)
-	tf_a = _smooth(tf_a, 14)
-	tb_a = _smooth(tb_a, 14)
-	for i in TAB_N:
-		var y := TAB_Y0 + i * 0.001
-		var b: Vector3 = bodies[i]
-		var xf := xf_a[i]
-		var xb := xb_a[i]
-		var zf := zf_a[i]
-		var zb := zb_a[i]
-		# above the armholes the ring runs on past the cut so the side is open
-		var up := _hermite(y, [1.25, 1.30, 1.32, 1.43, TOP], [0.0, 0.15, 0.163, 0.162, 0.142])
-		var rxf := _smax(xf, up, 0.006)
-		var rxb := _smax(xb, up, 0.006)
-		var ramp := 0.5 * smoothstep(ARM_BOTTOM + 0.004, ARM_BOTTOM - 0.012, y)
-		var d := zf - zb
-		var zmid := clampf(b.z, zb + 0.3 * d, zf - 0.3 * d)
+		# below the armholes the cut never bites
+		var ramp := 0.5 * smoothstep(ARM_BOTTOM + 0.003, ARM_BOTTOM - 0.012, y)
 		var o := i * STRIDE
-		_tab[o] = rxf
-		_tab[o + 1] = rxb
-		_tab[o + 2] = zf
-		_tab[o + 3] = zb
-		_tab[o + 4] = zmid
-		_tab[o + 5] = tf_a[i] + ramp
-		_tab[o + 6] = tb_a[i] + ramp
-		_tab[o + 7] = b.x
-		_tab[o + 8] = b.z + b.y
-		_tab[o + 9] = b.z - b.y
-		_tab[o + 10] = b.z
-		_tab[o + 11] = cs_a[i]
+		_tab[o] = cols[0][i]
+		_tab[o + 2] = cols[3][i]
+		_tab[o + 3] = cols[4][i]
+		_tab[o + 4] = cols[5][i]
+		_tab[o + 5] = cols[1][i] + ramp
+		_tab[o + 6] = cols[2][i] + ramp
 
 
 ## Gaussian smoothing (radius in samples), holding the ends.
@@ -271,31 +207,24 @@ func _row_at(y: float) -> PackedFloat32Array:
 	return out
 
 
-## Surface point at angle a, height y, pushed `push` metres outward, and
-## guaranteed to clear the mannequin.
+## Surface point at angle a, height y, pushed `push` metres outward.
+## Front half is a superellipse of exponent N_FRONT, back half N_BACK; they
+## meet at the side seam, the widest point of each cross-section.
 func surface(a: float, y: float, push: float = 0.0, row: PackedFloat32Array = PackedFloat32Array()) -> Vector3:
 	if row.is_empty():
 		row = _row_at(y)
 	var c := cos(a)
 	var s := sin(a)
-	var w := (c + 1.0) * 0.5
-	var rx := lerpf(row[1], row[0], w) + push
+	var rx := row[0] + push
 	var zmid := row[4]
-	var x := s * rx
+	var x: float
 	var z: float
 	if c >= 0.0:
-		z = zmid + c * (row[2] - zmid + push)
+		x = rx * signf(s) * pow(absf(s), 2.0 / N_FRONT)
+		z = zmid + (row[2] - zmid + push) * pow(c, 2.0 / N_FRONT)
 	else:
-		z = zmid + c * (zmid - row[3] + push)
-	# clear the body: push outward if inside the padded body ellipse
-	var bo := row[10]
-	var ex := row[7] + row[11] + push
-	var ez := (row[8] - bo if z >= bo else bo - row[9]) + CLEAR_FB + push
-	var q := sqrt((x / ex) * (x / ex) + ((z - bo) / ez) * ((z - bo) / ez))
-	if q < 1.15 and q > 1e-5:
-		var scale := _smax(q, 1.0, 0.04) / q
-		x *= scale
-		z = bo + (z - bo) * scale
+		x = rx * signf(s) * pow(absf(s), 2.0 / N_BACK)
+		z = zmid - (zmid - row[3] + push) * pow(-c, 2.0 / N_BACK)
 	return Vector3(x, y, z)
 
 
@@ -313,22 +242,31 @@ func normal_at(a: float, y: float, push: float = 0.0) -> Vector3:
 	return n
 
 
-## Lower edge: lowest at the front and back centres, rising over the hips.
+static func _lin_hold(x: float, pts: Array) -> float:
+	if x <= pts[0][0]:
+		return pts[0][1]
+	for i in pts.size() - 1:
+		if x <= pts[i + 1][0]:
+			var k: float = (x - pts[i][0]) / (pts[i + 1][0] - pts[i][0])
+			return lerpf(pts[i][1], pts[i + 1][1], k)
+	return pts[pts.size() - 1][1]
+
+
+## Height of the lower edge under a point at lateral position x.
+func hem(x: float, front: bool) -> float:
+	return _lin_hold(absf(x), HEM_F if front else HEM_B)
+
+
+## Lower edge at angle a (traced front and back views).
 func bottom(a: float) -> float:
-	var s := sin(a)
-	return BOTTOM_FRONT + BOTTOM_RISE * s * s
+	var p := surface(a, 1.03)
+	return hem(p.x, cos(a) >= 0.0)
 
 
-## Angle of the side seam on side sx (+1 / -1).
-func seam_angle(sx: float, y: float) -> float:
-	var row := _row_at(y)
-	var zmid := row[4]
-	var c: float
-	if SEAM_Z >= zmid:
-		c = (SEAM_Z - zmid) / (row[2] - zmid)
-	else:
-		c = (SEAM_Z - zmid) / (zmid - row[3])
-	return sx * acos(clampf(c, -1.0, 1.0))
+## Angle of the side seam on side sx (+1 / -1): the widest point of the
+## cross-section, where the breast and back plates meet.
+func seam_angle(sx: float, _y: float) -> float:
+	return sx * PI * 0.5
 
 
 # ==========================================================================
@@ -343,32 +281,32 @@ func _cut_mid(p: Vector3, a: float, y: float, row: PackedFloat32Array, side: int
 	var w := (c + 1.0) * 0.5
 	var arm := ax - (lerpf(row[6], row[5], w) - EDGE_R)
 	var f := maxf(neck, arm)
-	# split into breast (front of the seam) and back (behind, tucked under)
-	if side > 0:
-		f = maxf(f, (SEAM_Z - p.z) * 1.5)
-	else:
-		f = maxf(f, (p.z - SEAM_Z - 0.018) * 1.5)
 	return f
 
 
-func _cut_fauld(_p: Vector3, a: float, y: float, _row: PackedFloat32Array, _side: int) -> float:
-	return bottom(a) + EDGE_R - y
+func _cut_fauld(p: Vector3, a: float, y: float, _row: PackedFloat32Array, _side: int) -> float:
+	return hem(p.x, cos(a) >= 0.0) + EDGE_R - y
 
 
 ## Builds a clipped surface; returns [mesh, boundary loops (arrays of [a, y])].
-func _shell(y0: float, y1: float, push: float, cut: Callable, side: int) -> Array:
+func _shell(y0: float, y1: float, push: float, cut: Callable, side: int,
+		a_lo: float = -PI, a_hi: float = PI) -> Array:
 	var rows := int(ceil((y1 - y0) / ROW_STEP)) + 1
 	var ys := PackedFloat32Array()
 	for r in rows:
 		ys.append(lerpf(y0, y1, float(r) / (rows - 1)))
-	var da := TAU / COLS
+	# full ring wraps round; a partial span is an open grid with straight sides
+	var wrap := is_equal_approx(a_hi - a_lo, TAU)
+	var nc := COLS if wrap else int(ceil((a_hi - a_lo) / (TAU / COLS))) + 1
+	var da := (a_hi - a_lo) / (nc if wrap else nc - 1)
+	var cells := nc if wrap else nc - 1
 	# grid values
 	var gp := []        # positions
 	var gf := PackedFloat32Array()
 	for r in rows:
 		var row := _row_at(ys[r])
-		for c in COLS:
-			var a := -PI + c * da
+		for c in nc:
+			var a := a_lo + c * da
 			var p := surface(a, ys[r], push, row)
 			gp.append(p)
 			gf.append(cut.call(p, a, ys[r], row, side))
@@ -378,24 +316,24 @@ func _shell(y0: float, y1: float, push: float, cut: Callable, side: int) -> Arra
 	var tris := PackedInt32Array()
 
 	var grid_v := func(r: int, c: int) -> int:
-		var key := "g%d_%d" % [r, c % COLS]
+		var key := "g%d_%d" % [r, c % nc]
 		if not vid.has(key):
 			vid[key] = params.size()
-			params.append([-PI + (c % COLS) * da, ys[r]])
+			params.append([a_lo + (c % nc) * da, ys[r]])
 		return vid[key]
 
 	# vertex where the cut crosses the edge between two grid corners
 	var edge_v := func(r0: int, c0: int, r1: int, c1: int) -> int:
-		var ka := "%d_%d" % [r0, c0 % COLS]
-		var kb := "%d_%d" % [r1, c1 % COLS]
+		var ka := "%d_%d" % [r0, c0 % nc]
+		var kb := "%d_%d" % [r1, c1 % nc]
 		var key := ("e" + ka + "|" + kb) if ka < kb else ("e" + kb + "|" + ka)
 		if vid.has(key):
 			return vid[key]
-		var a0 := -PI + c0 * da
-		var a1 := -PI + c1 * da
+		var a0 := a_lo + c0 * da
+		var a1 := a_lo + c1 * da
 		var yy0 := ys[r0]
 		var yy1 := ys[r1]
-		var f0 := gf[r0 * COLS + c0 % COLS]
+		var f0 := gf[r0 * nc + c0 % nc]
 		var lo := 0.0
 		var hi := 1.0
 		for _i in 14:
@@ -414,7 +352,7 @@ func _shell(y0: float, y1: float, push: float, cut: Callable, side: int) -> Arra
 		return vid[key]
 
 	for r in rows - 1:
-		for c in COLS:
+		for c in cells:
 			var corners := [[r, c], [r, c + 1], [r + 1, c + 1], [r + 1, c]]
 			for tri in [[0, 1, 2], [0, 2, 3]]:
 				var vs := []
@@ -422,7 +360,7 @@ func _shell(y0: float, y1: float, push: float, cut: Callable, side: int) -> Arra
 					vs.append(corners[tri[k]])
 				var fs := []
 				for v in vs:
-					fs.append(gf[v[0] * COLS + v[1] % COLS])
+					fs.append(gf[v[0] * nc + v[1] % nc])
 				if fs[0] > 0.0 and fs[1] > 0.0 and fs[2] > 0.0:
 					continue
 				var poly := PackedInt32Array()
@@ -527,7 +465,10 @@ func _build_plate(piece_name: String, side: int) -> void:
 	var root: Node3D = pieces[piece_name]
 	_clear(root)
 	var push := 0.0 if side > 0 else -0.0018  # back plate tucks under the breast
-	var res: Array = _shell(SEAM_Y - 0.016, TOP, push, Callable(self, "_cut_mid"), side)
+	# the seam sits at the widest point of every cross-section (a = +-90 deg)
+	var lo := -PI * 0.5 if side > 0 else PI * 0.5 - BACK_TUCK
+	var hi := PI * 0.5 if side > 0 else PI * 1.5 + BACK_TUCK
+	var res: Array = _shell(SEAM_Y - 0.016, TOP, push, Callable(self, "_cut_mid"), side, lo, hi)
 	_add_mesh(root, res[0], metal)
 	# rolled edges everywhere except the hidden bottom row
 	var skip := func(_a: float, y: float) -> bool: return y < SEAM_Y - 0.01
@@ -538,7 +479,7 @@ func _build_fauld() -> void:
 	var root: Node3D = pieces["Fauld"]
 	_clear(root)
 	var push := 0.002
-	var res: Array = _shell(BOTTOM_FRONT - 0.002, SEAM_Y + 0.004, push, Callable(self, "_cut_fauld"), 0)
+	var res: Array = _shell(1.012, SEAM_Y + 0.004, push, Callable(self, "_cut_fauld"), 0)
 	_add_mesh(root, res[0], metal)
 	var hem := func(_a: float, y: float) -> bool: return y > SEAM_Y
 	var top := func(_a: float, y: float) -> bool: return y < SEAM_Y
@@ -578,12 +519,12 @@ func _build_shoulder_straps() -> void:
 func _strap_path(sx: float, x: float, y_low: float, t: float) -> Vector3:
 	var lift := 0.0058
 	var front := func(y: float) -> Vector3:
-		var rx := lerpf(_row_at(y)[1], _row_at(y)[0], 1.0)
-		var a := asin(clampf(x / rx, -1.0, 1.0))
+		var k := clampf(x / _row_at(y)[0], 0.0, 1.0)
+		var a := asin(pow(k, N_FRONT / 2.0))
 		return surface(sx * a, y, lift)
 	var back := func(y: float) -> Vector3:
-		var rx := _row_at(y)[1]
-		var a := PI - asin(clampf(x / rx, -1.0, 1.0))
+		var k := clampf(x / _row_at(y)[0], 0.0, 1.0)
+		var a := PI - asin(pow(k, N_BACK / 2.0))
 		return surface(sx * a, y, lift)
 	if t < 0.3:
 		return front.call(lerpf(y_low, TOP, t / 0.3))
@@ -625,7 +566,7 @@ func _build_belt() -> void:
 	_rivet_at(ab, by - 0.016, 0.002 + 0.0055, 0.0055)
 	# buckled straps across each side seam: one on the plates, one on the fauld
 	for sx in [-1.0, 1.0]:
-		for spec in [[1.237, 0.0035], [1.068, 0.002 + 0.0035]]:
+		for spec in [[STRAP_Y[0], 0.0035], [STRAP_Y[1], 0.002 + 0.0035]]:
 			var y: float = spec[0]
 			var pp: float = spec[1]
 			var a0 := seam_angle(sx, y)

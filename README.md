@@ -10,23 +10,20 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Proportions](docs/proportions.png)
 
-## v0.12 – cuirass traced from a reference sheet
+## v0.13 – cuirass true to the reference sheet
 
-The cuirass is traced from a front / side / back reference: the outline in each view is measured row by row and turned into width and depth profiles at every height, scaled onto the wooden mannequin.
+The cuirass follows the reference sheet only; it is not reshaped to fit the mannequin.
 
-- **Mid section:** breastplate and backplate with a round chest, wide shallow neckline, open armholes and narrow shoulder tabs. They meet at a seam on each side.
-- **Bottom section:** the fauld, one band that flares out below the waist, with the lower edge dipping at the front.
-- **Leather:** straps riveted to the front and back tabs join them over each shoulder; a belt across the front sits on the division with a buckle and hanging tail; buckled straps cross each side seam on the plates and on the fauld.
-- Neck and armholes are cut along smooth curves (marching-triangle clipping on the shell grid) and every cut edge gets a rolled edge.
-- Where the mannequin is fuller than the reference wearer, the profiles are widened just enough to clear it and then smoothed. A test measures the gap from every piece to the wood (at least 3 mm).
+- **Traced at one uniform scale** (0.818 mm per pixel on every axis), so its proportions are the reference's own. The front and back views give the width at every height, the side view gives the front and back depth.
+- **Cross-section from the sheet:** the side seam sits at the widest point of each section, about 4.5 cm behind the middle of the chest, giving a deep round breastplate and a shallow, flatter backplate. Above the armpits the plate's curve round the side is solved from where the armhole edge sits in the side view.
+- **Neckline and hem** traced from the front and back views; armholes from the front, back and side.
+- **Breast and back plates split exactly at the seam**, so the seam edges are straight, with the backplate tucked under the breastplate.
+- **Size and placement on the mannequin** are the only fitting: the whole cuirass is scaled up 8% (uniformly, proportions unchanged) and moved 11 mm forward to sit on the figure.
 
-**Silhouette pass:** the cuirass is rendered front / side / back at the reference sheet's scale and its outline is laid over the traced one (cyan over yellow below); `tools/silhouette_compare.py` reports the edge error row by row. Average error is about 4 mm in every view. Getting there meant giving the mannequin a realistic side profile (its upper chest now slopes back toward the collarbone and the ribcage narrows gradually below the armpit), trimming the padding to arming-doublet thickness (8 mm), pulling every cut in by the rolled edge's radius, and raising the hem over the hips.
-
-![Silhouette overlay](docs/cuirass_silhouette.png)
-
-Cuirass tab: show or hide the breastplate, backplate, fauld, shoulder straps and belts. Source: `scripts/pieces/cuirass.gd` (traced tables at the top).
+Silhouette error against the sheet: about 2.5 mm front, 2.7 mm side, 4 mm back (`tools/silhouette_compare.py`). Leather straps, belt with buckle and tail, and buckled side straps as before. Cuirass tab: show or hide each piece. Source: `scripts/pieces/cuirass.gd`.
 
 ![Reference vs cuirass](docs/cuirass.png)
+![Silhouette overlay](docs/cuirass_silhouette.png)
 ![On the mannequin](docs/cuirass_on_mannequin.png)
 
 ## v0.9 – add holes

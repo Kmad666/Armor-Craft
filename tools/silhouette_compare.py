@@ -4,12 +4,12 @@ import numpy as np
 REF='/mnt/user-data/attachments/046271ea-0a65-502a-ade0-ae197e0066c9/3a16b417-image.png'
 im=Image.open(REF).convert('RGB'); A=np.asarray(im).astype(int)
 YEL=(A[:,:,0]>180)&(A[:,:,1]>160)&(A[:,:,2]<90)
-AN=[(225,1.515),(485,1.285),(655,1.15),(830,1.02)]
+AN=[(225,1.513),(834,1.513-609*0.000818)]
 def y_of(py):
     for (p0,y0),(p1,y1) in zip(AN,AN[1:]):
         if py<=p1: return y0+(y1-y0)*(py-p0)/(p1-p0)
     (p0,y0),(p1,y1)=AN[-2],AN[-1]; return y0+(y1-y0)*(py-p0)/(p1-p0)
-SW=0.00077; SD=0.000958; CXF=279.0; CXB=1176.5; CXS=724.0
+SW=0.000818; SD=0.000818; CXF=278.5; CXB=1174.5; CXS=709.5
 SCALE=0.62/720.0
 def ours(name):
     o=np.asarray(Image.open(sys.argv[1]+'/'+name+'.png').convert('RGB')).astype(int)
