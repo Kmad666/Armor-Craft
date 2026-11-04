@@ -10,6 +10,18 @@ Design full suits of plate armor and sculpt your own helmet. Built in Godot 4.4 
 
 ![Proportions](docs/proportions.png)
 
+## v0.10 – Gothic cuirass
+
+A cuirass built to fit the wooden mannequin, split into two sections like the original armour:
+
+- **Mid section:** fluted **breastplate** (central ridge, two sets of chevron flutes sweeping down from the armholes, scooped neck, deep armholes, rolled edges, rivets) and a plain **backplate**, joined by leather shoulder straps.
+- **Bottom section:** the **fauld**, overlapping lames that each step a little further out and curve up toward the hips; the bottom lame dips at the centre front.
+- A leather **belt** with a brass buckle marks the division between the two.
+
+Everything is sized from `measurements.json` (chest, waist and hip width/depth, armpit and neck heights) with padding for the arming doublet, and hangs off the mannequin's Chest and Pelvis joints. A test checks the torso sits inside the plates and the arms stay clear. New **Cuirass** tab: show/hide each piece, fluting on/off, 1 to 7 fauld lames. Source: `scripts/pieces/cuirass.gd`.
+
+![Cuirass](docs/cuirass.png)
+
 ## v0.9 – add holes
 
 Punch real holes through the spangenhelm. In the Helmet tab press **Add Holes**, pick a shape (**Round**, **Slot**, **Cross**), set its size, and click the helmet: a gold outline previews the hole under the cursor, a click cuts it, and clicking an existing hole removes it. **Mirror** places a matching hole on the other side. **Eye Slits** and **Breaths** add a ready-made set (stretching the helmet over the face if needed); **Undo Hole** and **Clear Holes** do what they say.

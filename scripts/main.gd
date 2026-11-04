@@ -7,6 +7,7 @@ const HelmetPiece := preload("res://scripts/pieces/helmet_piece.gd")
 const BASCINET_SCENE := preload("res://assets/pieces/helmet_bascinet.glb")
 const ShapedHelmet := preload("res://scripts/pieces/shaped_helmet.gd")
 const ShapeGizmo := preload("res://scripts/pieces/shape_gizmo.gd")
+const Cuirass := preload("res://scripts/pieces/cuirass.gd")
 const SuitBuilder := preload("res://scripts/suit_builder.gd")
 const Mannequin := preload("res://scripts/pieces/mannequin.gd")
 const MANNEQUIN_SCENE := preload("res://assets/mannequin/mannequin_wood.glb")
@@ -106,6 +107,7 @@ var press_moved := false
 var drag_handle := ""
 var shape_sliders := {}
 var helm_mat: ShaderMaterial
+var cuirass: Node3D
 var hole_mode := false
 var hole_shape := 0
 var hole_w := 0.009
@@ -153,6 +155,11 @@ func _ready() -> void:
 	helm_mat = ShaderMaterial.new()
 	helm_mat.shader = METAL_SHADER
 	spangenhelm.setup(helm_mat)
+	cuirass = Cuirass.new()
+	cuirass.name = "Cuirass"
+	add_child(cuirass)
+	cuirass.setup({"metal": metal_mat, "leather": leather_mat, "brass": brass_mat},
+		mannequin.measurements, mannequin.node("Chest"), mannequin.node("Pelvis"))
 	gizmo = ShapeGizmo.new(spangenhelm)
 	gizmo.name = "ShapeGizmo"
 	add_child(gizmo)
@@ -422,7 +429,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "v0.9  -  drag to orbit, scroll to zoom"
+	hint.text = "v0.10  -  drag to orbit, scroll to zoom"
 	hint.add_theme_color_override("font_color", Color(0.85, 0.83, 0.8))
 	hint.position = Vector2(24, 56)
 	layer.add_child(hint)
@@ -457,6 +464,7 @@ func _build_ui() -> void:
 	_build_body_tab(_make_tab(tabs, "Body"))
 	_build_suit_tab(_make_tab(tabs, "Suit"))
 	_build_helmet_tab(_make_tab(tabs, "Helmet"))
+	_build_cuirass_tab(_make_tab(tabs, "Cuirass"))
 
 
 func _make_tab(tabs: TabContainer, tab_name: String) -> VBoxContainer:
@@ -512,6 +520,47 @@ func _build_body_tab(box: VBoxContainer) -> void:
 	show_suit.text = "Legacy procedural suit"
 	show_suit.toggled.connect(func(v: bool) -> void: suit_root.visible = v)
 	box.add_child(show_suit)
+
+
+func _build_cuirass_tab(box: VBoxContainer) -> void:
+	_header(box, "Gothic Cuirass")
+	var note := Label.new()
+	note.text = "Mid section: fluted breastplate and backplate. Bottom section: the fauld of overlapping lames. The belt marks the division."
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size = Vector2(280, 0)
+	note.add_theme_color_override("font_color", Color(0.8, 0.78, 0.74))
+	box.add_child(note)
+	_header(box, "Pieces")
+	var grid := GridContainer.new()
+	grid.columns = 2
+	box.add_child(grid)
+	for pair in [["Breastplate", "Breastplate"], ["Backplate", "Backplate"], ["Fauld", "Fauld"], ["Belt & Straps", "Belt"]]:
+		var key: String = pair[1]
+		var cb := CheckBox.new()
+		cb.text = pair[0]
+		cb.button_pressed = true
+		cb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		cb.toggled.connect(func(v: bool) -> void: (cuirass.pieces[key] as Node3D).visible = v)
+		grid.add_child(cb)
+	_header(box, "Details")
+	var flutes := CheckBox.new()
+	flutes.text = "Fluting"
+	flutes.button_pressed = true
+	flutes.toggled.connect(func(v: bool) -> void: cuirass.set_fluting(v))
+	box.add_child(flutes)
+	var lbl := Label.new()
+	lbl.text = "Fauld lames: %d" % cuirass.lames
+	box.add_child(lbl)
+	var sl := HSlider.new()
+	sl.min_value = 1
+	sl.max_value = 7
+	sl.step = 1
+	sl.value = cuirass.lames
+	sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sl.value_changed.connect(func(v: float) -> void:
+		cuirass.set_lames(int(v))
+		lbl.text = "Fauld lames: %d" % int(v))
+	box.add_child(sl)
 
 
 func _build_suit_tab(box: VBoxContainer) -> void:
@@ -914,7 +963,10 @@ func _on_preset(i: int) -> void:
 
 
 func _on_tab_changed(tab: int) -> void:
-	if tab == 2:
+	if tab == 3:
+		target_focus = Vector3(0, 1.22, 0)
+		target_distance = 1.7
+	elif tab == 2:
 		target_focus = Vector3(0, 1.76, 0)
 		target_distance = 1.05
 	else:
